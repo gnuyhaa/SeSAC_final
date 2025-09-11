@@ -5,3 +5,10 @@
 
 # 프로젝트 진행기간
 2025.09.04 ~ 2025.10.15
+
+# GIT 브랜치 생성
+git branch '각자이름'
+
+# 브랜치 이동
+git checkout main 
+git checktout '브랜치명'
