@@ -6,12 +6,22 @@
 # 프로젝트 진행기간
 2025.09.04 ~ 2025.10.15
 
-# 브랜치 이동
+# git 주의사항
+작업 시작 전 무조건 **pull** 하고 작업 시작하기
+
+## git 순서 
+0. git bash 에서 현재 main에 있는지 workspace에 있는지 확인
+1. 작업 시작 전 workspace 브랜치에서 pull 받기 
+2. 작업 진행 
+3. git add 파일명 
+4. git commit -m '<타입>:<짧은설명>'
+5. git push origin workspace
+
+## 브랜치 이동
 git checkout main 
 git checktout workspace
 
-# 커밋 템블릿
-## 타입형식
+## 커밋 타입형식
 - 기능: 새로운 기능 추가
 - 버그: 버그 수정
 - 문서: 문서 수정
@@ -22,7 +32,4 @@ git checktout workspace
 - 기타: 빌드, 설정, 기타 자잘한 변경
 
 > git commit -m '<타입>:<짧은설명>'
-
-### 주의사항
-작업 시작 전 무조건 **pull** 하고 작업 시작하기
 
