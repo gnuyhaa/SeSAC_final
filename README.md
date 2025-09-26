@@ -23,5 +23,3 @@
 4. GitHub에서 `dev` 브랜치를 대상으로 Pull Request(PR)를 생성합니다.
 5. 다른 팀원 1명 이상에게 **코드 리뷰**를 받고 승인(Approve)을 받습니다.
 6. PR을 `dev` 브랜치에 병합(Merge)합니다.
-
-
