@@ -22,3 +22,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 테스트용 루트 라우트 추가
+@app.get("/")
+def root():
+    return {"message": "API 서버 정상 작동 중"}
