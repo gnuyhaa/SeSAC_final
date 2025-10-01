@@ -17,7 +17,7 @@ app.include_router(emotions.router) # emotions 라우터
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  
+    allow_origins=["https://growth-doctor-front.web.app"],  
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
