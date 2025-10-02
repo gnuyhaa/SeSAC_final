@@ -1,10 +1,11 @@
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
 from db import engine
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import traceback
 
 router = APIRouter()
+KST = timezone(timedelta(hours=9))  # 한국 표준시
 
 @router.post("/emotions")
 def save_emotions(data: dict):
@@ -20,7 +21,7 @@ def save_emotions(data: dict):
                 )
             """), {
                 "nickname": data["nickname"],
-                "create_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "create_date": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S"), # 한국시간으로 저장
                 "depression": data["emotions"]["depression"],
                 "anxiety": data["emotions"]["anxiety"],
                 "stress": data["emotions"]["stress"],
