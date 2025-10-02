@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
-from db import engine
+from ..db import engine
 from datetime import datetime, timedelta, timezone
 import traceback
 
