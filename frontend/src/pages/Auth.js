@@ -27,6 +27,13 @@ export default function AuthPage({ onLoginSuccess }) {
     const id = data.get("id");
     const password = data.get("password");
 
+    // 아이디, 비밀번호 빈 경우 검사
+    if (!id || !password) {
+      toast.error("아이디와 비밀번호를 입력해주세요.");
+      setLoading(false);
+      return;
+    }
+
     // 아이디 유효성 검사
     if (!/^[A-Za-z0-9]{4,20}$/.test(id)) {
       toast.error("아이디는 영어, 숫자 4~20자로 입력해야 합니다.");
@@ -71,6 +78,13 @@ export default function AuthPage({ onLoginSuccess }) {
     const id = data.get("signup-id");
     const password = data.get("signup-password");
     const nickname = data.get("nickname");
+
+    // 아이디, 비밀번호, 닉네임 빈 경우 검사
+    if (!id || !password || !nickname) {
+      toast.error("모든 필드를 입력해주세요.");
+      setLoading(false);
+      return;
+    }
 
     // 아이디 유효성 검사
     if (!/^[A-Za-z0-9]{4,20}$/.test(id)) {
