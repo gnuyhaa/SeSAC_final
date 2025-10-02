@@ -63,25 +63,15 @@ class UserLogout(BaseModel):
 # ---------------------------
 @router.post("/register")
 def register(user: UserRegister):
-    with engine.connect() as conn:
-        # ID 중복 체크
-        existing = conn.execute(
-            text("SELECT * FROM tb_users WHERE id=:id"), {"id": user.id}
-        ).fetchone()
-
+    with engine.begin() as conn:  # commit 자동
+        existing = conn.execute(text("SELECT 1 FROM tb_users WHERE id=:id"), {"id": user.id}).fetchone()
         if existing:
-            logging.warning(f"회원가입 실패 - 이미 존재하는 ID: {user.id}") 
             raise HTTPException(status_code=400, detail="이미 존재하는 ID입니다.")
-
-        # 비밀번호 해싱
-        hashed_pw = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        # 회원 등록
+        
+        hashed_pw = bcrypt.hashpw(user.password.encode(), bcrypt.gensalt(rounds=12)).decode()  # rounds 적절히 조정
         conn.execute(
-            text(
-                "INSERT INTO tb_users (id, nickname, password) "
-                "VALUES (:id, :nickname, :password)"
-            ),
-            {"id": user.id, "nickname": user.nickname, "password": hashed_pw},
+            text("INSERT INTO tb_users (id, nickname, password) VALUES (:id, :nickname, :password)"),
+            {"id": user.id, "nickname": user.nickname, "password": hashed_pw}
         )
         conn.commit()
 
@@ -97,9 +87,9 @@ def login(user: UserLogin):
     with engine.connect() as conn:
         # 사용자 조회
         result = conn.execute(
-            text("SELECT * FROM tb_users WHERE id=:id"),
-            {"id": user.id},
-        ).mappings().fetchone() 
+            text("SELECT user_no, nickname, password, created_at FROM tb_users WHERE id=:id"),
+            {"id": user.id}
+        ).mappings().fetchone()
 
         if result and bcrypt.checkpw(user.password.encode('utf-8'), result["password"].encode('utf-8')):
             # JWT 생성   
