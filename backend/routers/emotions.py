@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
 from db import engine
-from datetime import date
+from datetime import datetime
 import traceback
 
 router = APIRouter()
@@ -20,7 +20,7 @@ def save_emotions(data: dict):
                 )
             """), {
                 "nickname": data["nickname"],
-                "create_date": date.today().isoformat(),  # YYYY-MM-DD
+                "create_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "depression": data["emotions"]["depression"],
                 "anxiety": data["emotions"]["anxiety"],
                 "stress": data["emotions"]["stress"],
