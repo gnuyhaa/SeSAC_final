@@ -99,36 +99,37 @@ def get_latest_recommendation(user_nickname: str):
     try:
         with engine.begin() as conn:
             # 1. 최신 감정 데이터
-            emotion_row = conn.execute(text("""
+            emotion_rows = conn.execute(text("""
                 SELECT depression, anxiety, stress, happiness, achievement, energy
                 FROM tb_users_emotions
                 WHERE nickname = :nickname
                 ORDER BY create_date DESC
-                LIMIT 1
-            """), {"nickname": user_nickname}).fetchone()
+            """), {"nickname": user_nickname}).fetchall()
 
             # 2. 최신 녹지 유형
-            cat_row = conn.execute(text("""
+            cat_rows = conn.execute(text("""
                 SELECT category_1, category_2, category_3
                 FROM tb_users_category_recommend
                 WHERE nickname = :nickname
                 ORDER BY create_date DESC
-                LIMIT 1
-            """), {"nickname": user_nickname}).fetchone()
+            """), {"nickname": user_nickname}).fetchall()
 
             # 3. 최신 추천 공원
-            park_row = conn.execute(text("""
+            park_rows = conn.execute(text("""
                 SELECT park_1, park_2, park_3, park_4, park_5, park_6
                 FROM tb_users_parks_recommend
                 WHERE nickname = :nickname
                 ORDER BY create_date DESC
-                LIMIT 1
-            """), {"nickname": user_nickname}).fetchone()
+            """), {"nickname": user_nickname}).fetchall()
 
         return {
-            "latest_emotions": dict(emotion_row._mapping) if emotion_row else {},
-            "recommended_categories": [cat for cat in cat_row if cat] if cat_row else [],
-            "recommended_parks": [park for park in park_row if park] if park_row else []
+            "latest_emotions": [dict(row._mapping) for row in emotion_rows] if emotion_rows else [],
+            "recommended_categories": [
+                [cat for cat in row._mapping.values() if cat] for row in cat_rows
+            ] if cat_rows else [],
+            "recommended_parks": [
+                [park for park in row._mapping.values() if park] for row in park_rows
+            ] if park_rows else []
         }
 
     except Exception as e:
