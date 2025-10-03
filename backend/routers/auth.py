@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Header, Request
 from pydantic import BaseModel, validator
-from ..db import engine
+from db import engine
 from sqlalchemy import text
 import bcrypt, re, logging, jwt, os
 from dotenv import load_dotenv
