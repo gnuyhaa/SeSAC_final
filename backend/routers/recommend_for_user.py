@@ -90,3 +90,47 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
+# ------------------
+# 추천 정보 불러오기
+# 감정, 녹지, 공원
+# ------------------
+@router.get("/latest_recommendation/{user_nickname}")
+def get_latest_recommendation(user_nickname: str):
+    try:
+        with engine.begin() as conn:
+            # 1. 최신 감정 데이터
+            emotion_row = conn.execute(text("""
+                SELECT depression, anxiety, stress, happiness, achievement, energy
+                FROM tb_users_emotions
+                WHERE nickname = :nickname
+                ORDER BY create_date DESC
+                LIMIT 1
+            """), {"nickname": user_nickname}).fetchone()
+
+            # 2. 최신 녹지 유형
+            cat_row = conn.execute(text("""
+                SELECT category_1, category_2, category_3
+                FROM tb_users_category_recommend
+                WHERE nickname = :nickname
+                ORDER BY create_date DESC
+                LIMIT 1
+            """), {"nickname": user_nickname}).fetchone()
+
+            # 3. 최신 추천 공원
+            park_row = conn.execute(text("""
+                SELECT park_1, park_2, park_3, park_4, park_5, park_6
+                FROM tb_users_parks_recommend
+                WHERE nickname = :nickname
+                ORDER BY create_date DESC
+                LIMIT 1
+            """), {"nickname": user_nickname}).fetchone()
+
+        return {
+            "latest_emotions": dict(emotion_row._mapping) if emotion_row else {},
+            "recommended_categories": [cat for cat in cat_row if cat] if cat_row else [],
+            "recommended_parks": [park for park in park_row if park] if park_row else []
+        }
+
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
