@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from .routers import auth, parks, park_category, emotions, recommend_parks, recommend_category, recommend_for_user
+from routers import auth, parks, park_category, emotions, recommend_parks, recommend_category, recommend_for_user
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
