@@ -14,7 +14,7 @@ def save_emotions(data: dict):
 
         with engine.begin() as conn:
             conn.execute(text("""
-                INSERT INTO tb_user_emotions (
+                INSERT INTO tb_users_emotions (
                     nickname, create_date, depression, anxiety, stress, happiness, achievement, energy, latitude, longitude
                 ) VALUES (
                     :nickname, :create_date, :depression, :anxiety, :stress, :happiness, :achievement, :energy, :latitude, :longitude
@@ -43,12 +43,12 @@ def save_emotions(data: dict):
 def update_location(nickname: str, data: dict):
     with engine.begin() as conn:
         conn.execute(text("""
-            UPDATE tb_user_emotions
+            UPDATE tb_users_emotions
             SET latitude = :latitude, longitude = :longitude
             WHERE id = (
                 SELECT id FROM (
                     SELECT id
-                    FROM tb_user_emotions
+                    FROM tb_users_emotions
                     WHERE nickname = :nickname
                     ORDER BY id DESC
                     LIMIT 1
