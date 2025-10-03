@@ -1,7 +1,7 @@
 # 녹지 유형 api
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
-from ..db import engine
+from db import engine
 
 router = APIRouter()
 
