@@ -17,6 +17,6 @@ DB_CHARSET = os.getenv("DB_CHARSET", "utf8mb4")
 # SQLAlchemy 엔진 생성
 engine = create_engine(
     f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset={DB_CHARSET}",
-    echo=True,
+    echo=False,
     future=True
 )
