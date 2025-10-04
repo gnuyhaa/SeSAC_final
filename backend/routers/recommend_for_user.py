@@ -39,9 +39,15 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
             }
             lat, lon = row.latitude, row.longitude
 
+            # 사용자 감정 로그
+            print(f"[{user_nickname}] 최신 감정:", emotions, "위치:", (lat, lon))
+
             # 2. 녹지 유형 추천
             recommended_categories = recommend_category_by_mind(emotions, top_n=top_n_categories)
             
+            # 녹지 유형 로그
+            print(f"[{user_nickname}] 추천 녹지 유형:", recommended_categories)
+
             # DB 저장 - tb_user_recommended_categories
             insert_cat = text(f"""
                 INSERT INTO tb_users_category_recommend
@@ -57,11 +63,17 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
                 "c2": c[1],
                 "c3": c[2]
             })
+            
+            # 저장 후 로그
+            print(f"{user_nickname} 저장된 녹지 유형:", c[:top_n_categories])
 
             # 3. 공원 추천
             # recommend_parks_api 함수는 lat/lon/emotions/top_n 필요
             park_result = recommend_parks_api(lat=lat, lon=lon, emotions=emotions, top_n=top_n_parks)
             recommended_parks = park_result["recommended_parks"]
+
+            # 공원 추천 로그
+            print(f"[{user_nickname}] 추천 공원:", [p.get("Name") for p in recommended_parks])
 
             # DB 저장 - tb_user_recommended_parks
             insert_parks = text(f"""
@@ -121,6 +133,11 @@ def get_latest_recommendation(user_nickname: str):
                 WHERE nickname = :nickname
                 ORDER BY create_date DESC
             """), {"nickname": user_nickname}).fetchall()
+            
+            # 로그
+            print(f"[{user_nickname}] 최신 감정 데이터:", [dict(r._mapping) for r in emotion_rows])
+            print(f"[{user_nickname}] 최신 녹지 유형:", [[c for c in r._mapping.values() if c] for r in cat_rows])
+            print(f"[{user_nickname}] 최신 추천 공원:", [[p for p in r._mapping.values() if p] for r in park_rows])
 
         return {
             "latest_emotions": [dict(row._mapping) for row in emotion_rows] if emotion_rows else [],
