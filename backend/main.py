@@ -20,7 +20,7 @@ app.include_router(recommend_for_user.router) # recommend_parks 라우터
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://growth-doctor-front.web.app", "http://localhost:3000", "http://172.16.20.116:3000"],  
+    allow_origins=["https://growth-doctor-front.web.app", "http://localhost:3000", "http://176.16.0.55:3000"],  
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
