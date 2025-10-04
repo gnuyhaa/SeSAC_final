@@ -119,7 +119,9 @@ def recommend_parks_api(
             print("parks_list 길이:", len(parks_list)) ### 
 
             if not parks_list:
-                return {"message": "반경 5km 내 공원이 없습니다."}
+                return {
+                    "recommended_parks": [], 
+                    "message": "반경 5km 내 공원이 없습니다."}
 
             # 공원 점수 가져오기
             parks_score_list = []
@@ -142,7 +144,8 @@ def recommend_parks_api(
 
         # 감정 기반 추천
         recommended = recommend_from_scored_parks(parks_score_list, emotions, top_n=top_n)
-        return {"recommended_parks": recommended}
+        return {"recommended_parks": recommended,
+                "message": "추천 성공"}
 
     except Exception as e:
         traceback.print_exc()  # 서버 콘솔에 자세한 에러 출력
