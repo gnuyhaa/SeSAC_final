@@ -5,6 +5,8 @@ from .recommend_category import recommend_category_by_mind
 from .recommend_parks import recommend_parks_api
 import traceback
 
+import time
+
 router = APIRouter()
 
 @router.post("/recommend_for_user")
@@ -17,7 +19,11 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
     로그는 그대로 출력
     """
     try:
+        start_time = time.time()
+        print("\n===== 추천 알고리즘 시작 =====")
+
         with engine.begin() as conn:
+            t0 = time.time()
             # 1. 최근 감정과 위치 가져오기
             query_emotion = text("""
                 SELECT nickname, create_date, depression, anxiety, stress, happiness, achievement, energy, latitude, longitude
@@ -27,6 +33,8 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
                 LIMIT 1
             """)
             row = conn.execute(query_emotion, {"nickname": user_nickname}).fetchone()
+            print(f"[시간] 감정 조회 완료: {time.time() - t0:.3f}초")
+
             if not row:
                 raise HTTPException(status_code=404, detail="사용자 감정 정보가 없습니다.")
             
@@ -42,10 +50,13 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
             print(f"[{user_nickname}] 최신 감정:", emotions, "위치:", (lat, lon))
 
             # 2. 녹지 유형 추천
+            t1 = time.time()
             recommended_categories = recommend_category_by_mind(emotions, top_n=top_n_categories)
             print(f"[{user_nickname}] 추천 녹지 유형 (이름만):", recommended_categories)
+            print(f"[시간] 카테고리 추천 완료: {time.time() - t1:.3f}초")
 
             # Content 포함해서 DB와 반환용으로 가져오기
+            t2 = time.time()
             cat_with_content = []
             for rc in recommended_categories:
                 cat_name = rc["category"]
@@ -60,7 +71,7 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
                     "category": cat_name,
                     "content": sentences
                 })
-
+            print(f"[시간] 카테고리 Content 조회 완료: {time.time() - t2:.3f}초")
             print(f"[{user_nickname}] 추천 녹지 유형 + Content:", cat_with_content)
 
             # DB 저장 - tb_users_category_recommend
@@ -80,7 +91,9 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
             print(f"{user_nickname} 저장된 녹지 유형:", c[:top_n_categories])
 
             # 3. 공원 추천
+            t3 = time.time()
             park_result = recommend_parks_api(lat=lat, lon=lon, emotions=emotions, top_n=top_n_parks)
+            print(f"[시간] 공원 추천 완료: {time.time() - t3:.3f}초")
             recommended_parks = park_result["recommended_parks"]
             print(f"[{user_nickname}] 추천 공원:", [p.get("Name") for p in recommended_parks])
 
@@ -101,7 +114,8 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
                 "p5": p[4],
                 "p6": p[5],
             })
-
+            # 최종 시간 출력
+            print(f"===== 총 처리 시간: {time.time() - start_time:.3f}초 =====\n")
         # 4. 결과 반환
         return {
             "recommended_categories": cat_with_content,
