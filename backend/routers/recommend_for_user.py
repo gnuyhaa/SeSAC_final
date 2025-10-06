@@ -17,7 +17,6 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
     로그는 그대로 출력
     """
     try:
-
         with engine.begin() as conn:
             # 1. 최근 감정과 위치 가져오기
             query_emotion = text("""
@@ -120,7 +119,7 @@ def get_latest_recommendation(user_nickname: str):
         with engine.begin() as conn:
             # 최신 감정 데이터
             emotion_rows = conn.execute(text("""
-                SELECT depression, anxiety, stress, happiness, achievement, energy
+                SELECT create_date, depression, anxiety, stress, happiness, achievement, energy
                 FROM tb_users_emotions
                 WHERE nickname = :nickname
                 ORDER BY create_date DESC
@@ -128,7 +127,7 @@ def get_latest_recommendation(user_nickname: str):
 
             # 최신 녹지 유형
             cat_rows = conn.execute(text("""
-                SELECT category_1, category_2, category_3
+                SELECT create_date, category_1, category_2, category_3
                 FROM tb_users_category_recommend
                 WHERE nickname = :nickname
                 ORDER BY create_date DESC
@@ -136,7 +135,7 @@ def get_latest_recommendation(user_nickname: str):
 
             # 최신 추천 공원
             park_rows = conn.execute(text("""
-                SELECT park_1, park_2, park_3, park_4, park_5, park_6
+                SELECT create_date, park_1, park_2, park_3, park_4, park_5, park_6
                 FROM tb_users_parks_recommend
                 WHERE nickname = :nickname
                 ORDER BY create_date DESC
