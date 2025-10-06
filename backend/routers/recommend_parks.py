@@ -123,30 +123,36 @@ def recommend_parks_api(
                     "recommended_parks": [], 
                     "message": "반경 5km 내 공원이 없습니다."}
 
-            # 공원 점수 가져오기
-            parks_score_list = []
-            query_score = text("SELECT * FROM tb_parks_score WHERE ParkID = :park_id;")
-            for park in parks_list:
-                print("park row:", park)
-                print("keys:", park._mapping.keys())
-                rows = conn.execute(query_score, {"park_id": park.ID}).fetchall()
-                for r in rows:
-                    row_dict = dict(r._mapping)  # SQLAlchemy Row → dict 변환
-                    # park 이름, 좌표도 mapping으로 접근
-                    row_dict.update({
-                        "ParkName": park._mapping['Park'],
-                        "Latitude": park._mapping['Latitude'],
-                        "Longitude": park._mapping['Longitude']
-                    })
-                    print("row_dict 최종:", row_dict) ##
+            # 공원 ID 목록 추출
+            park_ids = [p.ID for p in parks_list]
 
+            # 한 번에 점수 데이터 조회 (IN 절)
+            query_scores = text(f"""
+                SELECT * FROM tb_parks_score
+                WHERE ParkID IN :park_ids
+            """)
+            rows = conn.execute(query_scores, {"park_ids": tuple(park_ids)}).fetchall()
+
+            # ParkID 기준으로 공원 기본정보 매핑
+            park_info = {p.ID: p for p in parks_list}
+
+            parks_score_list = []
+            for r in rows:
+                row_dict = dict(r._mapping)
+                pid = row_dict["ParkID"]
+                if pid in park_info:
+                    park = park_info[pid]
+                    row_dict.update({
+                        "ParkName": park.Park,
+                        "Latitude": park.Latitude,
+                        "Longitude": park.Longitude
+                    })
                     parks_score_list.append(row_dict)
 
         # 감정 기반 추천
         recommended = recommend_from_scored_parks(parks_score_list, emotions, top_n=top_n)
-        return {"recommended_parks": recommended,
-                "message": "추천 성공"}
+        return {"recommended_parks": recommended, "message": "추천 성공"}
 
     except Exception as e:
-        traceback.print_exc()  # 서버 콘솔에 자세한 에러 출력
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"서버 오류: {str(e)}")
