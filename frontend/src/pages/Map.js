@@ -47,33 +47,51 @@ export default function KakaoMap() {
         }
       );
     }
+  }, []);
 
+  useEffect(() => {
     const fetchData = async () => {
       try {
-        const [allRes, recRes] = await Promise.all([
+        const [allRes, recRes, emotionRes] = await Promise.all([
           axios.get(`${process.env.REACT_APP_API_URL}/parks`),
           nickname
             ? axios.get(
                 `${process.env.REACT_APP_API_URL}/latest_recommendation/${nickname}`
               )
             : Promise.resolve({ data: { recommended_parks: [] } }),
+          axios.get(`${process.env.REACT_APP_API_URL}/park_emotion`),
         ]);
 
         const allParks = allRes.data;
+        setParkEmotions(emotionRes.data);
 
         const parksData = recRes.data?.recommended_parks || [];
         const latestNames = Array.isArray(parksData[0])
-          ? parksData[parksData.length - 1]
-          : Array.isArray(parksData)
-          ? parksData
+          ? parksData.at(0).slice(1)
           : [];
-
         const validNames = latestNames.filter(Boolean);
 
         const filtered =
           validNames.length > 0
             ? allParks
                 .filter((p) => validNames.includes(p.name))
+                .reduce((acc, cur) => {
+                  const existing = acc.find((x) => x.name === cur.name);
+                  if (!existing) {
+                    acc.push(cur);
+                  } else if (myPosition) {
+                    const dist = (a, b) =>
+                      Math.sqrt(
+                        Math.pow(a.lat - b.lat, 2) + Math.pow(a.lon - b.lon, 2)
+                      );
+                    const currentDist = dist(myPosition, cur);
+                    const existingDist = dist(myPosition, existing);
+                    if (currentDist < existingDist) {
+                      acc[acc.indexOf(existing)] = cur;
+                    }
+                  }
+                  return acc;
+                }, [])
                 .sort(
                   (a, b) => validNames.indexOf(a.name) - validNames.indexOf(b.name)
                 )
@@ -85,20 +103,16 @@ export default function KakaoMap() {
       }
     };
 
-    fetchData();
+    if (myPosition) fetchData();
+  }, [myPosition, nickname]);
 
-    axios
-      .get(`${process.env.REACT_APP_API_URL}/park_emotion`)
-      .then((res) => setParkEmotions(res.data))
-      .catch((err) => console.error("emotions API error:", err));
-  }, []);
 
   const handleSelect = (park) => {
-    setCenter({ lat: park.lat, lng: park.lon });
+    setCenter((prev) => prev || { lat: park.lat, lng: park.lon });
     setSelectedPark(park);
 
     axios
-      .get(`${process.env.REACT_APP_API_URL}/park_weather/${park.name}`)
+      .get(`${process.env.REACT_APP_API_URL}/park_weather/${encodeURIComponent(park.name)}?lat=${park.lat}&lon=${park.lon}`)
       .then((res) => setWeather(res.data))
       .catch((err) => console.error("weather API error:", err));
   };
@@ -112,7 +126,7 @@ export default function KakaoMap() {
           flexDirection: "column",
           height: "100%",
           borderRight: "1px solid #ddd",
-          width: "375px",
+          width: "390px",
         }}
       >
         <div
@@ -123,7 +137,7 @@ export default function KakaoMap() {
             marginTop: "-25px",
           }}
         >
-          {selectedPark ? "공원 상세보기" : "녹지 리스트"}
+          {selectedPark ? "녹지 상세보기" : "추천 리스트"}
           <div
             style={{
               fontSize: "14px",
@@ -145,7 +159,7 @@ export default function KakaoMap() {
         </div>
         <hr style={{ margin: 0 }} />
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "16px 4px" }}>
           {selectedPark ? (
             <div>
               {weather && (
@@ -227,7 +241,7 @@ export default function KakaoMap() {
               )}
 
               {selectedPark.des && selectedPark.des.trim() !== "" && (
-                <p style={{ margin: "0 0 12px 0", color: "#444", fontSize: "14px" }}>
+                <p style={{ margin: "0 0 12px 0", color: "#444"}}>
                   {selectedPark.des}
                 </p>
               )}
@@ -315,7 +329,7 @@ export default function KakaoMap() {
                                 style={{
                                   border: "1px solid #2ecc71",
                                   borderRadius: "20px",
-                                  padding: "4px 10px",
+                                  padding: "3px 8px",
                                   fontSize: "0.8em",
                                   color: "#2ecc71",
                                   backgroundColor: "rgba(255,255,255,0.3)",
@@ -369,7 +383,11 @@ export default function KakaoMap() {
           {parks
             .filter((p) => p.lat && p.lon)
             .map((park, idx) => {
-              const isSelected = selectedPark && selectedPark.name === park.name;
+              const isSelected =
+                selectedPark &&
+                selectedPark.lat === park.lat &&
+                selectedPark.lon === park.lon;
+
               const isHovered = hoveredPark && hoveredPark.name === park.name;
 
               return (
