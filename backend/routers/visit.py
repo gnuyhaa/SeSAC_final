@@ -46,7 +46,7 @@ def toggle_visit_status(nickname: str, park_id: int, is_visited: bool, visit_dat
 def get_user_visits(nickname: str, visit_date: str = None):
     try:
         now_kst = datetime.now(KST)
-        date_str = visit_date if visit_date else now_kst.strftime("%Y-%m-%d")
+        visit_dt = datetime.strptime(visit_date, "%Y-%m-%d %H:%M:%S") if visit_date else now_kst
 
         with engine.connect() as conn:
             result = conn.execute(text("""
@@ -58,12 +58,11 @@ def get_user_visits(nickname: str, visit_date: str = None):
                 FROM tb_parks p
                 LEFT JOIN tb_users_parks_status s
                   ON p.ID = s.park_id AND s.nickname = :nickname AND s.visit_date = :visit_date
-            """), {"nickname": nickname, "visit_date": date_str}).mappings().all()
+            """), {"nickname": nickname, "visit_date": visit_dt}).mappings().all()
 
-        print(f"[{now_kst.strftime('%Y-%m-%d %H:%M:%S')}] GET_USER_VISITS: nickname={nickname}, visit_date={date_str}, count={len(result)}")
+        print(f"[{now_kst.strftime('%Y-%m-%d %H:%M:%S')}] GET_USER_VISITS: nickname={nickname}, visit_date={visit_dt}, count={len(result)}")
 
-        return {"parks": result, "visit_date": date_str}
-
+        return {"parks": result, "visit_date": visit_dt}
 
     except Exception as e:
         print(f"[{datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S')}] GET_USER_VISITS ERROR:", str(e))
