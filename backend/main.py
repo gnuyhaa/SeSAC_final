@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from routers import auth, parks, emotions, recommend_parks, recommend_category, recommend_for_user
+from routers import auth, parks, emotions, recommend_parks, recommend_category, recommend_for_user, visit
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
@@ -15,6 +15,8 @@ app.include_router(emotions.router) # emotions 라우터
 app.include_router(recommend_parks.router) # recommend_parks 라우터
 app.include_router(recommend_category.router) # recommend_parks 라우터
 app.include_router(recommend_for_user.router) # recommend_parks 라우터
+app.include_router(visit.router) # visit 라우터
+
 
 # CORS 설정
 app.add_middleware(
