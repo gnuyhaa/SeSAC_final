@@ -12,7 +12,7 @@ KST = timezone(timedelta(hours=9))  # 한국 표준시
 def toggle_visit_status(nickname: str, park_id: int, is_visited: bool, visit_date: str = None):
     try:
         now_kst = datetime.now(KST)
-        date_str = visit_date if visit_date else now_kst.strftime("%Y-%m-%d")
+        visit_dt = datetime.strptime(visit_date, "%Y-%m-%d %H:%M:%S") if visit_date else now_kst
 
         with engine.begin() as conn:
             # 1. 현재 상태 테이블 갱신
@@ -22,14 +22,14 @@ def toggle_visit_status(nickname: str, park_id: int, is_visited: bool, visit_dat
                 ON DUPLICATE KEY UPDATE
                     is_visited = :is_visited,
                     updated_at = NOW()
-            """), {"nickname": nickname, "park_id": park_id, "is_visited": is_visited, "visit_date": date_str})
+            """), {"nickname": nickname, "park_id": park_id, "is_visited": is_visited, "visit_date": visit_dt})
 
             # 2. 방문 기록은 ON일 때만 추가
             if is_visited:
                 conn.execute(text("""
                     INSERT INTO tb_parks_visit_log (nickname, park_id, visit_date)
                     VALUES (:nickname, :park_id, :visit_date)
-                """), {"nickname": nickname, "park_id": park_id, "visit_date": now_kst})
+                """), {"nickname": nickname, "park_id": park_id, "visit_date": visit_dt})
 
         print(f"[{now_kst.strftime('%Y-%m-%d %H:%M:%S')}] TOGGLE_VISIT: nickname={nickname}, park_id={park_id}, is_visited={is_visited}, visit_date={date_str}")
 
