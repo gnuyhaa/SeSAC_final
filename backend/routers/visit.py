@@ -11,32 +11,41 @@ KST = timezone(timedelta(hours=9))  # 한국 표준시
 # 토글 상태 변경 API
 # -----------------------------
 @router.post("/toggle_visit_status")
-def toggle_visit_status(nickname: str, park_id: int, is_visited: bool, visit_date: str = None):
+def toggle_visit_status(nickname: str, park_id: int):
+    """
+    공원 방문 시 tb_parks_visit_log에 기록하고,
+    tb_users_parks_status의 visit_count를 갱신합니다.
+    """
     try:
         now_kst = datetime.now(KST)
-        # 프론트에서 datetime 보내주면 그대로 사용, 없으면 현재 KST
-        visit_dt = datetime.strptime(visit_date, "%Y-%m-%d %H:%M:%S") if visit_date else now_kst
 
         with engine.begin() as conn:
-            # 1. 사용자 현재 상태 테이블 갱신
+            # 1. 방문 로그 INSERT
             conn.execute(text("""
-                INSERT INTO tb_users_parks_status (nickname, park_id, is_visited, visit_date)
-                VALUES (:nickname, :park_id, :is_visited, :visit_date)
-                ON DUPLICATE KEY UPDATE
-                    is_visited = :is_visited,
-                    updated_at = NOW()
-            """), {"nickname": nickname, "park_id": park_id, "is_visited": is_visited, "visit_date": visit_dt})
+                INSERT INTO tb_parks_visit_log (nickname, park_id, visit_date)
+                VALUES (:nickname, :park_id, :visit_date)
+            """), {"nickname": nickname, "park_id": park_id, "visit_date": now_kst})
 
-            # 2. 방문 기록은 ON일 때만 추가
-            if is_visited:
-                conn.execute(text("""
-                    INSERT INTO tb_parks_visit_log (nickname, park_id, visit_date)
-                    VALUES (:nickname, :park_id, :visit_date)
-                """), {"nickname": nickname, "park_id": park_id, "visit_date": visit_dt})
+            # 2. 누적 방문 횟수 갱신
+            # tb_parks_visit_log 기준으로 COUNT
+            result = conn.execute(text("""
+                SELECT nickname, park_id, COUNT(*) AS visit_count
+                FROM tb_parks_visit_log
+                WHERE nickname = :nickname AND park_id = :park_id
+                GROUP BY nickname, park_id
+            """), {"nickname": nickname, "park_id": park_id}).mappings().first()
 
-        print(f"[{now_kst.strftime('%Y-%m-%d %H:%M:%S')}] TOGGLE_VISIT: nickname={nickname}, park_id={park_id}, is_visited={is_visited}, visit_date={visit_dt}")
+            # tb_users_parks_status 갱신
+            conn.execute(text("""
+                INSERT INTO tb_users_parks_status (nickname, park_id, visit_count)
+                VALUES (:nickname, :park_id, :visit_count)
+                ON DUPLICATE KEY UPDATE visit_count = :visit_count
+            """), result)
 
-        return {"status": "success", "is_visited": is_visited}
+        print(f"[{now_kst.strftime('%Y-%m-%d %H:%M:%S')}] TOGGLE_VISIT:")
+        print(f"  nickname={nickname}, park_id={park_id}, new_visit_count={result['visit_count']}")
+        
+        return {"status": "success", "visit_count": result["visit_count"]}
 
     except Exception as e:
         print(f"[{datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S')}] TOGGLE_VISIT ERROR:", str(e))
@@ -48,26 +57,19 @@ def toggle_visit_status(nickname: str, park_id: int, is_visited: bool, visit_dat
 # 마이페이지용 – 사용자 방문 상태 조회
 # -----------------------------
 @router.get("/get_user_visits")
-def get_user_visits(nickname: str, visit_date: str = None):
+def get_user_visits(nickname: str):
     try:
-        now_kst = datetime.now(KST)
-        visit_dt = datetime.strptime(visit_date, "%Y-%m-%d %H:%M:%S") if visit_date else now_kst
-
         with engine.connect() as conn:
             result = conn.execute(text("""
-                SELECT 
-                    p.ID AS park_id, 
-                    p.Park AS park_name, 
-                    p.Address AS address, 
-                    IFNULL(s.is_visited, 0) AS is_visited
+                SELECT p.ID AS park_id, p.Park AS park_name, p.Address AS address,
+                       IFNULL(s.visit_count, 0) AS visit_count
                 FROM tb_parks p
                 LEFT JOIN tb_users_parks_status s
-                  ON p.ID = s.park_id AND s.nickname = :nickname AND s.visit_date = :visit_date
-            """), {"nickname": nickname, "visit_date": visit_dt}).mappings().all()
+                  ON p.ID = s.park_id AND s.nickname = :nickname
+            """), {"nickname": nickname}).mappings().all()
+        print(f"[{datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S')}] GET_USER_VISITS: nickname={nickname}, parks_count={len(result)}")
 
-        print(f"[{now_kst.strftime('%Y-%m-%d %H:%M:%S')}] GET_USER_VISITS: nickname={nickname}, visit_date={visit_dt}, count={len(result)}")
-
-        return {"parks": result, "visit_date": visit_dt}
+        return {"parks": result}
 
     except Exception as e:
         print(f"[{datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S')}] GET_USER_VISITS ERROR:", str(e))
@@ -92,7 +94,7 @@ def get_district_heatmap():
                 GROUP BY district_name
             """)).mappings().all()
 
-        print(f"[{now_kst.strftime('%Y-%m-%d %H:%M:%S')}] GET_DISTRICT_HEATMAP: districts={len(result)}")
+        print(f"[{now_kst.strftime('%Y-%m-%d %H:%M:%S')}] GET_DISTRICT_HEATMAP: districts_count={len(result)}")
 
         return {"districts": result}
 
