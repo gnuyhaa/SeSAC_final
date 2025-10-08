@@ -31,7 +31,7 @@ def toggle_visit_status(nickname: str, park_id: int, is_visited: bool, visit_dat
                     VALUES (:nickname, :park_id, :visit_date)
                 """), {"nickname": nickname, "park_id": park_id, "visit_date": visit_dt})
 
-        print(f"[{now_kst.strftime('%Y-%m-%d %H:%M:%S')}] TOGGLE_VISIT: nickname={nickname}, park_id={park_id}, is_visited={is_visited}, visit_date={date_str}")
+        print(f"[{now_kst.strftime('%Y-%m-%d %H:%M:%S')}] TOGGLE_VISIT: nickname={nickname}, park_id={park_id}, is_visited={is_visited}")
 
         return {"status": "success", "is_visited": is_visited}
 
