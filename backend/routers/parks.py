@@ -114,30 +114,16 @@ def get_parks():
 # 공원 날씨 + 미세먼지 조회 (캐시적용)
 # -----------------
 
-@router.get("/park_weather/{park_name}")
-def get_park_weather(park_name: str):
-    # 캐시 확인
-    cached = weather_cache.get(park_name)
+@router.get("/park_weather")
+def get_park_weather(lat: float, lon: float):
+    """
+    위도, 경도로 해당 위치의 실시간 날씨 + 미세먼지 정보를 가져옴 (캐시 적용)
+    """
+    cache_key = f"{lat},{lon}"
+    cached = weather_cache.get(cache_key)
     if cached and time.time() - cached["timestamp"] < CACHE_DURATION:
         return cached["data"]
-    """
-    공원 이름으로 해당 공원의 실시간 날씨 + 미세먼지 정보를 가져옴
-    """
-    # 위도 경도 조회
-    with engine.connect() as conn:
-        result = conn.execute(
-            text("SELECT * FROM tb_parks WHERE Park = :name"),
-            {"name": park_name}
-        ).fetchone()
 
-        if not result:
-            raise HTTPException(status_code=404, detail="Park not found")
-        
-        row = dict(result._mapping)  # 튜플 -> dict 변환
-        lat = row["Latitude"]
-        lon = row["Longitude"]
-
-    # 날씨 API 호출
     weather_params = {
         "lat": lat,
         "lon": lon,
@@ -145,32 +131,31 @@ def get_park_weather(park_name: str):
         "units": "metric",
         "lang": "kr"
     }
+
     weather_res = requests.get(BASE_URL, params=weather_params)
     weather_data = weather_res.json()
 
-    # 미세먼지 API 호출
     air_res = requests.get(AIR_URL, params=weather_params)
     air_data = air_res.json()
 
     pm2_5 = air_data["list"][0]["components"]["pm2_5"]
     pm10 = air_data["list"][0]["components"]["pm10"]
 
-    data =  {
-        "name": row["Park"],
+    data = {
         "lat": lat,
         "lon": lon,
         "weather": {
-            "temp": round(weather_data["main"]["temp"], 1),  # 온도
-            "humidity": weather_data["main"]["humidity"], # 습도
-            "icon" : weather_data["weather"][0]["icon"] # 아이콘
+            "temp": round(weather_data["main"]["temp"], 1),
+            "humidity": weather_data["main"]["humidity"],
+            "icon": weather_data["weather"][0]["icon"]
         },
         "air": {
-                "pm2_5": pm2_5,
-                "pm2_5_label": get_pm25_label(pm2_5), # 초미세먼지
-                "pm10": pm10,
-                "pm10_label": get_pm10_label(pm10) # 미세먼지
+            "pm2_5": pm2_5,
+            "pm2_5_label": get_pm25_label(pm2_5),
+            "pm10": pm10,
+            "pm10_label": get_pm10_label(pm10)
         }
     }
-    weather_cache[park_name] = {"timestamp": time.time(), "data": data}
 
+    weather_cache[cache_key] = {"timestamp": time.time(), "data": data}
     return data
