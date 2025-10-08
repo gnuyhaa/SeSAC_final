@@ -39,10 +39,14 @@ def get_user_visits(nickname: str):
     try:
         with engine.connect() as conn:
             result = conn.execute(text("""
-                SELECT p.park_id, p.park_name, p.address, IFNULL(s.is_visited, 0) AS is_visited
-                FROM tb_parks_info p
+                SELECT 
+                    p.ID AS park_id, 
+                    p.Park AS park_name, 
+                    p.Address AS address, 
+                    IFNULL(s.is_visited, 0) AS is_visited
+                FROM tb_parks p
                 LEFT JOIN tb_users_parks_status s
-                ON p.park_id = s.park_id AND s.nickname = :nickname
+                ON p.ID = s.park_id AND s.nickname = :nickname
             """), {"nickname": nickname}).mappings().all()
 
         return {"parks": result}
@@ -58,10 +62,12 @@ def get_district_heatmap():
     try:
         with engine.connect() as conn:
             result = conn.execute(text("""
-                SELECT p.district_name, COUNT(*) AS visit_count
+                SELECT 
+                    SUBSTRING_INDEX(SUBSTRING_INDEX(p.Address, ' ', 2), ' ', -1) AS district_name,
+                    COUNT(*) AS visit_count
                 FROM tb_parks_visit_log v
-                JOIN tb_parks_info p ON v.park_id = p.park_id
-                GROUP BY p.district_name
+                JOIN tb_parks p ON v.park_id = p.ID
+                GROUP BY district_name
             """)).mappings().all()
 
         return {"districts": result}
