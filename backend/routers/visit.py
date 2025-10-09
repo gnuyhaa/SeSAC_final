@@ -15,43 +15,67 @@ def toggle_visit_status(nickname: str, park_id: int):
     """
     공원 방문 시 tb_parks_visit_log에 기록하고,
     tb_users_parks_status의 visit_count를 갱신합니다.
+    공원 방문 시: 로그 추가 + 상태 테이블 업데이트
+    방문 해제 시: 상태 해제
     """
     try:
-        now_kst = datetime.now(KST)
-
-        with engine.begin() as conn:
-            # 1. 방문 로그 INSERT
-            conn.execute(text("""
-                INSERT INTO tb_parks_visit_log (nickname, park_id, visit_date)
-                VALUES (:nickname, :park_id, :visit_date)
-            """), {"nickname": nickname, "park_id": park_id, "visit_date": now_kst})
-
-            # 2. 누적 방문 횟수 갱신
-            # tb_parks_visit_log 기준으로 COUNT
-            result = conn.execute(text("""
-                SELECT nickname, park_id, COUNT(*) AS visit_count
-                FROM tb_parks_visit_log
-                WHERE nickname = :nickname AND park_id = :park_id
-                GROUP BY nickname, park_id
-            """), {"nickname": nickname, "park_id": park_id}).mappings().first()
-
-            # tb_users_parks_status 갱신
-            conn.execute(text("""
-                INSERT INTO tb_users_parks_status (nickname, park_id, visit_count)
-                VALUES (:nickname, :park_id, :visit_count)
-                ON DUPLICATE KEY UPDATE visit_count = :visit_count
-            """), result)
-
-        print(f"[{now_kst.strftime('%Y-%m-%d %H:%M:%S')}] TOGGLE_VISIT:")
-        print(f"  nickname={nickname}, park_id={park_id}, new_visit_count={result['visit_count']}")
+        now_dt = datetime.now(KST)
+        now_str = now_dt.strftime("%Y-%m-%d %H:%M:%S")
         
-        return {"status": "success", "visit_count": result["visit_count"]}
+        with engine.begin() as conn:
+            # 현재 상태 조회
+            status = conn.execute(text("""
+                SELECT is_visited FROM tb_users_parks_status
+                WHERE nickname = :nickname AND park_id = :park_id
+            """), {"nickname": nickname, "park_id": park_id}).mappings().fetchone()
+
+            if status and status["is_visited"] == 1:
+                # 방문 해제
+                conn.execute(text("""
+                    UPDATE tb_users_parks_status
+                    SET is_visited = 0, updated_at = :updated_at
+                    WHERE nickname = :nickname AND park_id = :park_id
+                """), {"nickname": nickname, "park_id": park_id, "updated_at": now_str})
+
+                print(f"[{now_str}] UNVISIT: nickname={nickname}, park_id={park_id}")
+                action = "unvisited"
+
+            else:
+                # 방문 등록
+                conn.execute(text("""
+                    INSERT INTO tb_parks_visit_log (nickname, park_id, visit_date)
+                    VALUES (:nickname, :park_id, :visit_date)
+                """), {"nickname": nickname, "park_id": park_id, "visit_date": now_str})
+
+                # 상태 테이블 갱신 (없으면 insert)
+                conn.execute(text("""
+                    INSERT INTO tb_users_parks_status (nickname, park_id, is_visited, visit_date, updated_at)
+                    VALUES (:nickname, :park_id, 1, :visit_date, :updated_at)
+                    ON DUPLICATE KEY UPDATE
+                        is_visited = 1,
+                        visit_date = :visit_date,
+                        updated_at = :updated_at
+                """), {
+                    "nickname": nickname,
+                    "park_id": park_id,
+                    "visit_date": now_str,
+                    "updated_at": now_str
+                })
+
+                print(f"[{now_str}] VISIT: nickname={nickname}, park_id={park_id}")
+                action = "visited"
+
+            # 방문 횟수 계산
+            visit_count = conn.execute(text("""
+                SELECT COUNT(*) AS cnt FROM tb_parks_visit_log
+                WHERE nickname = :nickname AND park_id = :park_id
+            """), {"nickname": nickname, "park_id": park_id}).scalar()
+
+        return {"status": "success", "action": action, "visit_count": visit_count}
 
     except Exception as e:
-        print(f"[{datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S')}] TOGGLE_VISIT ERROR:", str(e))
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="DB error while toggling visit status")
-
 
 # -----------------------------
 # 마이페이지용 – 사용자 방문 상태 조회
