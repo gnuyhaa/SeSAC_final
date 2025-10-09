@@ -10,7 +10,7 @@
 
 > git commit -m '<타입>:<짧은설명>'
 
-## 백엔드 프로젝트 구조 설명
+## 백엔드 구조 설명
 
   ├─ backend/  
   │   ├─ routers/  
@@ -23,12 +23,14 @@
   │   │   ├─ recommend_for_user.py # category+parks 저장 API  
   │   │   ├─ recommend_parks.py # 공원 추천 API  
   │   │   ├─ visit.py # 공원 방문 여부 저장 API  
-  │   ├─ algorithm/ # 알고리즘 코드  
-  │   │   ├─ category_algorithm.py # 녹지 유형 추천 알고리즘  
-  │   │   ├─ parks_algorithm.py # 공원 추천 알고리즘  
-  │   ├─ llm/ # llm 코드  
-  │   │   ├─ summary_chain.py # LLM 요약 관련 코드  
-  │   │   ├─ weekly_chain.py # 주간 총평 LLM 관련 코드  
   │   ├─ .env  
   │   ├─ db.py  
   │   └─ main.py  
+
+## 알고리즘, llm 코드 구조 설명
+  ├─ algorithm/ # 알고리즘 코드  
+  │   ├─ category_algorithm.py # 녹지 유형 추천 알고리즘  
+  │   ├─ parks_algorithm.py # 공원 추천 알고리즘  
+  ├─ llm/ # llm 코드  
+  │   ├─ summary_chain.py # LLM 요약 관련 코드  
+  │   ├─ weekly_chain.py # 주간 총평 LLM 관련 코드  
