@@ -13,10 +13,8 @@ KST = timezone(timedelta(hours=9))  # 한국 표준시
 @router.post("/toggle_visit_status")
 def toggle_visit_status(nickname: str, park_id: int):
     """
-    공원 방문 시 tb_parks_visit_log에 기록하고,
-    tb_users_parks_status의 visit_count를 갱신합니다.
-    공원 방문 시: 로그 추가 + 상태 테이블 업데이트
-    방문 해제 시: 상태 해제
+    공원 방문 시: 로그 추가(tb_parks_visit_log에 기록) + 상태 테이블 업데이트(tb_users_parks_status)
+    방문 해제 시: 상태 해제 (is_visited=0)
     """
     try:
         now_dt = datetime.now(KST)
@@ -37,8 +35,8 @@ def toggle_visit_status(nickname: str, park_id: int):
                     WHERE nickname = :nickname AND park_id = :park_id
                 """), {"nickname": nickname, "park_id": park_id, "updated_at": now_str})
 
-                print(f"[{now_str}] UNVISIT: nickname={nickname}, park_id={park_id}")
                 action = "unvisited"
+                print(f"[{now_str}] UNVISIT: nickname={nickname}, park_id={park_id}")
 
             else:
                 # 방문 등록
@@ -62,12 +60,12 @@ def toggle_visit_status(nickname: str, park_id: int):
                     "updated_at": now_str
                 })
 
-                print(f"[{now_str}] VISIT: nickname={nickname}, park_id={park_id}")
                 action = "visited"
+                print(f"[{now_str}] VISIT: nickname={nickname}, park_id={park_id}")
 
             # 방문 횟수 계산
             visit_count = conn.execute(text("""
-                SELECT COUNT(*) AS cnt FROM tb_parks_visit_log
+                SELECT COUNT(*) FROM tb_parks_visit_log
                 WHERE nickname = :nickname AND park_id = :park_id
             """), {"nickname": nickname, "park_id": park_id}).scalar()
 
