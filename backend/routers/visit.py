@@ -71,6 +71,12 @@ def toggle_visit_status(nickname: str, park_id: int):
                 WHERE nickname = :nickname AND park_id = :park_id
             """), {"nickname": nickname, "park_id": park_id}).scalar()
 
+            conn.execute(text("""
+                UPDATE tb_users_parks_status
+                SET visit_count = :visit_count
+                WHERE nickname = :nickname AND park_id = :park_id
+            """), {"visit_count": visit_count, "nickname": nickname, "park_id": park_id})
+
         return {"status": "success", "action": action, "visit_count": visit_count}
 
     except Exception as e:
@@ -86,7 +92,9 @@ def get_user_visits(nickname: str):
         with engine.connect() as conn:
             result = conn.execute(text("""
                 SELECT p.ID AS park_id, p.Park AS park_name, p.Address AS address,
-                       IFNULL(s.visit_count, 0) AS visit_count
+                    IFNULL(s.visit_count, 0) AS visit_count,
+                    IFNULL(s.is_visited, 0) AS is_visited,
+                    s.visit_date
                 FROM tb_parks p
                 LEFT JOIN tb_users_parks_status s
                   ON p.ID = s.park_id AND s.nickname = :nickname
