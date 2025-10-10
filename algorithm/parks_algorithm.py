@@ -23,15 +23,18 @@ def parks_and_scores_in_5km(latitude, longitude):
     conn = get_db_connection()
 
     # 사용자 현재 위치부터 반경 5km이내 공원 가져오는 SELECT문 (python코드로 걸러내는 것 보다 이게 빠름)
-    cur = conn.cursor(pymysql.cursors.DictCursor)
+    cur = conn.cursor()
     query = """
-    SELECT ID, Latitude, Longitude,
+    SELECT 
+        s.ParkID, s.ParkName, s.Nature, s.Convenience, s.Safety, s.Activity, s.Social, s.Trust,
+        p.Latitude, p.Longitude,
         (6371 * ACOS(
-            COS(RADIANS(%s)) * COS(RADIANS(latitude)) *
-            COS(RADIANS(longitude) - RADIANS(%s)) +
-            SIN(RADIANS(%s)) * SIN(RADIANS(latitude))
+            COS(RADIANS(%s)) * COS(RADIANS(p.latitude)) *
+            COS(RADIANS(p.longitude) - RADIANS(%s)) +
+            SIN(RADIANS(%s)) * SIN(RADIANS(p.latitude))
         )) AS distance
-    FROM tb_parks
+    FROM tb_parks_score s
+    JOIN tb_parks p ON s.ParkID = p.ID
     HAVING distance <= 5
     ORDER BY distance;
     """
@@ -40,30 +43,10 @@ def parks_and_scores_in_5km(latitude, longitude):
     cur.execute(query, (latitude, longitude, latitude))
     parks_list = cur.fetchall()
 
-    parks_score_list = []  # 여러 공원 점수 저장할 리스트
-    
-    for park in parks_list:
-        ID = park['ID']
-        distance = park['distance']  # 공원까지 거리
-        
-        query = """
-        SELECT *
-        FROM tb_parks_score
-        WHERE ParkID = %s;
-        """
-        
-        cur.execute(query, (ID,))
-        rows = cur.fetchall()
-        
-        # 각 점수 딕셔너리에 distance 추가
-        for r in rows:
-            r['distance'] = distance
-            parks_score_list.append(r)
-
     cur.close()
     conn.close()
 
-    return parks_score_list
+    return parks_list
 
 
 # 감정 가중치(연구 기반)
@@ -99,7 +82,7 @@ def blend_emotion_weights(emotion_levels: Dict[str, int]) -> Dict[str, float]:
             agg[d] += base[emo][d] * contrib
 
     s = sum(agg.values())
-    return {d: (agg[d]/s if s>0 else 0.0) for d in dims}
+    return {d: (agg[d]/s if s > 0 else 0.0) for d in dims}
 
 # 점수화된 공원 추천
 def score_with_stored_indicators(park: Dict[str, Any], weights: Dict[str, float]) -> Dict[str, float]:
