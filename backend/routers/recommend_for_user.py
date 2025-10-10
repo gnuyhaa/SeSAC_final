@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
 from ..db import engine
-from .recommend_category import recommend_category_by_mind
-from .recommend_parks import recommend_parks_api
+from algorithm.parks_algorithm import recommend_from_scored_parks
+from algorithm.category_algorithm import recommend_category_by_mind
 import traceback
 
 router = APIRouter()
@@ -80,9 +80,9 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
             print(f"{user_nickname} 저장된 녹지 유형:", c[:top_n_categories])
 
             # 3. 공원 추천
-            park_result = recommend_parks_api(lat=lat, lon=lon, emotions=emotions, top_n=top_n_parks)
-            recommended_parks = park_result["recommended_parks"]
-            print(f"[{user_nickname}] 추천 공원:", [p.get("Name") for p in recommended_parks])
+            recommended_parks = recommend_from_scored_parks(lat, lon, emotions, top_n=top_n_parks)            
+            p = [p.get("Park", "") or p.get("ParkName", "") for p in recommended_parks] + [None]*6 
+            print(f"[{user_nickname}] 추천 공원:", [park.get("Park", "") or park.get("ParkName", "") for park in recommended_parks])
 
             # DB 저장 - tb_users_parks_recommend
             insert_parks = text("""
@@ -90,10 +90,9 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
                 (nickname, create_date, park_1, park_2, park_3, park_4, park_5, park_6)
                 VALUES (:nickname, :create_date, :p1, :p2, :p3, :p4, :p5, :p6)
             """)
-            p = [p.get("Name","") for p in recommended_parks] + [None]*6
             conn.execute(insert_parks, {
                 "nickname": user_nickname,
-                "create_date": row.create_date,
+                "create_date": row._mapping["create_date"],
                 "p1": p[0],
                 "p2": p[1],
                 "p3": p[2],
