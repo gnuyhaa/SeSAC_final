@@ -81,12 +81,9 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
             print(f"{user_nickname} 저장된 녹지 유형:", c[:top_n_categories])
 
             # 3. 공원 추천
-            start_time = time.time()
             recommended_parks = recommend_from_scored_parks(lat, lon, emotions, top_n=top_n_parks)            
-            end_time = time.time()
-            print(f"[{user_nickname}] 추천 공원 계산 완료 — 소요 시간: {end_time - start_time:.2f}초")
 
-            print(f"[{user_nickname}] 추천 공원:", [park.get("Park", "") for park in recommended_parks])
+            print(f"[{user_nickname}] 추천 공원:", [park.get("ParkName", "") for park in recommended_parks])
 
             # DB 저장 - tb_users_parks_recommend
             insert_parks = text("""
@@ -94,7 +91,7 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
                 (nickname, create_date, park_1, park_2, park_3, park_4, park_5, park_6)
                 VALUES (:nickname, :create_date, :p1, :p2, :p3, :p4, :p5, :p6)
             """)
-            p = [p.get("ParkName") or p.get("Park") for p in recommended_parks] + [None]*6
+            p = [p.get("ParkName") for p in recommended_parks] + [None]*6
             conn.execute(insert_parks, {
                 "nickname": user_nickname,
                 "create_date": row._mapping["create_date"],
