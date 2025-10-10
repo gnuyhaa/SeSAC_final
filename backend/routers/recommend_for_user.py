@@ -4,6 +4,7 @@ from ..db import engine
 from algorithm.parks_algorithm import recommend_from_scored_parks
 from algorithm.category_algorithm import recommend_category_by_mind
 import traceback
+import time
 
 router = APIRouter()
 
@@ -80,7 +81,11 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
             print(f"{user_nickname} 저장된 녹지 유형:", c[:top_n_categories])
 
             # 3. 공원 추천
+            start_time = time.time()
             recommended_parks = recommend_from_scored_parks(lat, lon, emotions, top_n=top_n_parks)            
+            end_time = time.time()
+            print(f"[{user_nickname}] 추천 공원 계산 완료 — 소요 시간: {end_time - start_time:.2f}초")
+
             print(f"[{user_nickname}] 추천 공원:", [park.get("Park", "") for park in recommended_parks])
 
             # DB 저장 - tb_users_parks_recommend
