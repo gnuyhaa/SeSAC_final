@@ -32,35 +32,35 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
                 raise HTTPException(status_code=404, detail="사용자 감정 정보가 없습니다.")
             
             emotions = {
-                "우울": row.depression,
-                "불안": row.anxiety,
-                "스트레스": row.stress,
-                "행복": row.happiness,
-                "에너지": row.energy,
-                "성취감": row.achievement
+                "우울": row._mapping["depression"],
+                "불안": row._mapping["anxiety"],
+                "스트레스": row._mapping["stress"],
+                "행복": row._mapping["happiness"],
+                "에너지": row._mapping["energy"],
+                "성취감": row._mapping["achievement"]
             }
-            lat, lon = row.latitude, row.longitude
+            lat, lon = row._mapping["latitude"], row._mapping["longitude"]
             print(f"[{user_nickname}] 최신 감정:", emotions, "위치:", (lat, lon))
 
             # 2. 녹지 유형 추천
             recommended_categories = recommend_category_by_mind(emotions, top_n=top_n_categories)
             print(f"[{user_nickname}] 추천 녹지 유형 (이름만):", recommended_categories)
 
-            # Content 포함해서 DB와 반환용으로 가져오기
+            # Content 포함해서 DB와 반환용으로 한 번에 가져오기
+            categories = [rc["category"] for rc in recommended_categories]
+            query_content = text("""
+                SELECT Category, Content
+                FROM tb_parks_categorys
+                WHERE Category IN :categories
+            """)
+            content_rows = conn.execute(query_content, {"categories": tuple(categories)}).fetchall()
+            content_map = {r._mapping["Category"]: r._mapping["Content"] for r in content_rows}
+
             cat_with_content = []
             for rc in recommended_categories:
                 cat_name = rc["category"]
-                # DB에서 Content 가져오기
-                result = conn.execute(text("""
-                    SELECT Content
-                    FROM tb_parks_categorys
-                    WHERE Category = :category
-                """), {"category": cat_name}).fetchone()
-                sentences = [s.strip() for s in result.Content.split("/") if s.strip()] if result else []
-                cat_with_content.append({
-                    "category": cat_name,
-                    "content": sentences
-                })
+                sentences = [s.strip() for s in content_map.get(cat_name, "").split("/") if s.strip()]
+                cat_with_content.append({"category": cat_name, "content": sentences})
             print(f"[{user_nickname}] 추천 녹지 유형 + Content:", cat_with_content)
 
             # DB 저장 - tb_users_category_recommend
@@ -72,7 +72,7 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
             c = [rc["category"] for rc in recommended_categories] + [None]*3
             conn.execute(insert_cat, {
                 "nickname": user_nickname,
-                "create_date": row.create_date,
+                "create_date": row._mapping["create_date"],
                 "c1": c[0],
                 "c2": c[1],
                 "c3": c[2]
@@ -81,7 +81,6 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
 
             # 3. 공원 추천
             recommended_parks = recommend_from_scored_parks(lat, lon, emotions, top_n=top_n_parks)            
-            p = [p.get("Park", "") for p in recommended_parks] + [None]*6 
             print(f"[{user_nickname}] 추천 공원:", [park.get("Park", "") for park in recommended_parks])
 
             # DB 저장 - tb_users_parks_recommend
@@ -90,6 +89,7 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
                 (nickname, create_date, park_1, park_2, park_3, park_4, park_5, park_6)
                 VALUES (:nickname, :create_date, :p1, :p2, :p3, :p4, :p5, :p6)
             """)
+            p = [p.get("ParkName") or p.get("Park") for p in recommended_parks] + [None]*6
             conn.execute(insert_parks, {
                 "nickname": user_nickname,
                 "create_date": row._mapping["create_date"],
