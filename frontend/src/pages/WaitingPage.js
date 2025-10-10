@@ -54,6 +54,7 @@ export default function WaitingPage({ user }) {
   const navigate = useNavigate();
   const location = useLocation();
   const hasRun = useRef(false);
+  const inFlightRef = useRef(false);
 
   const [categories, setCategories] = useState([]);
   const [position, setPosition] = useState({ lat: null, lng: null });
@@ -70,7 +71,6 @@ export default function WaitingPage({ user }) {
   const [showButton, setShowButton] = useState(false);
   const [showStamp, setShowStamp] = useState(false);
   const [startTransition, setStartTransition] = useState(false);
-
   const emotions = location.state?.emotions || {};
 
   const TYPING_SPEED = 40;
@@ -87,45 +87,78 @@ export default function WaitingPage({ user }) {
     if (hasRun.current) return;
     hasRun.current = true;
 
+    async function getApproxLocation() {
+      try {
+        const res = await axios.get("https://ipapi.co/json/");
+        const { latitude, longitude } = res.data;
+        console.log("🌍 IP 기반 위치:", latitude, longitude);
+        return { lat: latitude, lng: longitude };
+      } catch (err) {
+        console.error("⚠️ IP 기반 위치 조회 실패:", err);
+        return null;
+      }
+    }
+
+    async function handlePosition(lat, lng) {
+      if (inFlightRef.current) {
+        console.log("🔁 handlePosition skipped (in-flight)");
+        return;
+      }
+      inFlightRef.current = true;
+
+      try {
+        if (position.lat && position.lng) return;
+        setPosition({ lat, lng });
+
+        console.log("⏱️ 위치 업데이트 API 호출 시작");
+        const locationStartTime = Date.now();
+        await axios.put(
+          `${process.env.REACT_APP_API_URL}/emotions/${user.nickname}/location`,
+          { latitude: lat, longitude: lng }
+        );
+        console.log(`✅ 위치 업데이트 완료 (${Date.now() - locationStartTime}ms)`);
+
+        console.log("⏱️ 추천 알고리즘 API 호출 시작");
+        const recommendStartTime = Date.now();
+        const recRes = await axios.post(
+          `${process.env.REACT_APP_API_URL}/recommend_for_user`,
+          null,
+          { params: { user_nickname: user.nickname } }
+        );
+        console.log(`✅ 추천 완료 (${Date.now() - recommendStartTime}ms)`);
+        setCategories(recRes.data.recommended_categories || []);
+      } catch (err) {
+        console.error("추천 처리 실패:", err);
+      } finally {
+        inFlightRef.current = false;
+      }
+    }
+
     if ("geolocation" in navigator) {
       console.log("⏱️ 위치 정보 요청 시작");
+
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           console.log("✅ 위치 정보 획득:", pos.coords);
-          const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          setPosition(coords);
-          try {
-            console.log("⏱️ 위치 업데이트 API 호출 시작");
-            const locationStartTime = Date.now();
-            await axios.put(
-              `https://growth-doctor.onrender.com/emotions/${user.nickname}/location`,
-              { latitude: coords.lat, longitude: coords.lng }
-            );
-            console.log(`✅ 위치 업데이트 완료 (${Date.now() - locationStartTime}ms)`);
-            console.log("⏱️ 추천 알고리즘 API 호출 시작");
-            const recommendStartTime = Date.now();
-
-            const recRes = await axios.post(
-              `https://growth-doctor.onrender.com/recommend_for_user`,
-              null,
-              { params: { user_nickname: user.nickname } }
-            );
-            console.log(`✅ 추천 완료 (${Date.now() - recommendStartTime}ms)`);
-            setCategories(recRes.data.recommended_categories || []);
-          } catch (err) {
-            console.error("추천 처리 실패:", err);
-            toast.error("추천 데이터를 불러오지 못했습니다.");
+          await handlePosition(pos.coords.latitude, pos.coords.longitude);
+        },
+        async (err) => {
+          console.log("⚠️ GPS 위치 획득 실패:", err);
+          if (!position.lat || !position.lng) {
+            const approx = await getApproxLocation();
+            if (approx) await handlePosition(approx.lat, approx.lng);
           }
         },
-        (err) => {
-          console.error("위치 에러:", err);
-          toast.error("위치 권한이 거부되었거나 가져올 수 없습니다.");
-        }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     } else {
-      toast.error("위치 서비스를 사용할 수 없습니다.");
-    }
-  }, [user.nickname]);
+  (async () => {
+    const approx = await getApproxLocation();
+    if (approx) await handlePosition(approx.lat, approx.lng);
+    else toast.error("위치 서비스를 사용할 수 없습니다.");
+  })();
+}
+}, [user.nickname]);
 
   useEffect(() => {
     if (categories.length === 0) return;
