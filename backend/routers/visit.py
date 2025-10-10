@@ -21,65 +21,40 @@ def toggle_visit_status(nickname: str, park_id: int, create_date: str):
         now_str = now_dt.strftime("%Y-%m-%d %H:%M:%S")
         
         with engine.begin() as conn:
-            # 현재 상태 조회
-            status = conn.execute(text("""
-                SELECT is_visited FROM tb_users_parks_status
-                WHERE nickname = :nickname AND park_id = :park_id
-            """), {"nickname": nickname, "park_id": park_id}).mappings().fetchone()
+            # 클릭할 때마다 무조건 로그 INSERT
+            conn.execute(text("""
+                INSERT INTO tb_parks_visit_log (nickname, park_id, create_date, visit_date)
+                VALUES (:nickname, :park_id, :create_date, :visit_date)
+            """), {
+                "nickname": nickname,
+                "park_id": park_id,
+                "create_date": create_date,
+                "visit_date": now_str
+            })
 
-            if status and status["is_visited"] == 1:
-                # 방문 해제
-                conn.execute(text("""
-                    UPDATE tb_users_parks_status
-                    SET is_visited = 0, updated_at = :updated_at
-                    WHERE nickname = :nickname AND park_id = :park_id
-                """), {"nickname": nickname, "park_id": park_id, "updated_at": now_str})
-
-                action = "unvisited"
-                print(f"[{now_str}] UNVISIT: nickname={nickname}, park_id={park_id}")
-
-            else:
-                # 방문 등록
-                conn.execute(text("""
-                    INSERT INTO tb_parks_visit_log (nickname, park_id, create_date, visit_date)
-                    VALUES (:nickname, :park_id, :create_date, :visit_date)
-                """), {
-                    "nickname": nickname,
-                    "park_id": park_id,
-                    "create_date": create_date,
-                    "visit_date": now_str
-                })
-
-                # 상태 테이블 갱신 (없으면 insert)
-                conn.execute(text("""
-                    INSERT INTO tb_users_parks_status (nickname, park_id, is_visited, visit_date, updated_at)
-                    VALUES (:nickname, :park_id, 1, :visit_date, :updated_at)
-                    ON DUPLICATE KEY UPDATE
-                        is_visited = 1,
-                        visit_date = :visit_date,
-                        updated_at = :updated_at
-                """), {
-                    "nickname": nickname,
-                    "park_id": park_id,
-                    "visit_date": now_str,
-                    "updated_at": now_str
-                })
-                action = "visited"
-                print(f"[{now_str}] VISIT: nickname={nickname}, park_id={park_id}")
-
-            # 방문 횟수 계산
+            # park_id별 누적 방문 횟수 계산
             visit_count = conn.execute(text("""
                 SELECT COUNT(*) FROM tb_parks_visit_log
                 WHERE nickname = :nickname AND park_id = :park_id
             """), {"nickname": nickname, "park_id": park_id}).scalar()
 
+            # 상태 테이블(tb_users_parks_status) 갱신
             conn.execute(text("""
-                UPDATE tb_users_parks_status
-                SET visit_count = :visit_count
-                WHERE nickname = :nickname AND park_id = :park_id
-            """), {"visit_count": visit_count, "nickname": nickname, "park_id": park_id})
+                INSERT INTO tb_users_parks_status (nickname, park_id, is_visited, visit_count, visit_date, updated_at)
+                VALUES (:nickname, :park_id, 1, :visit_count, :visit_date, :updated_at)
+                ON DUPLICATE KEY UPDATE
+                    visit_count = :visit_count,
+                    visit_date = :visit_date,
+                    updated_at = :updated_at
+            """), {
+                "nickname": nickname,
+                "park_id": park_id,
+                "visit_count": visit_count,
+                "visit_date": now_str,
+                "updated_at": now_str
+            })
 
-        return {"status": "success", "action": action, "visit_count": visit_count}
+        return {"status": "success", "visit_count": visit_count}
 
     except Exception:
         traceback.print_exc()
