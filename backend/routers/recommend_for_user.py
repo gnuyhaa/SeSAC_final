@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
-from db import engine
+from ..db import engine
 from .recommend_category import recommend_category_by_mind
 from .recommend_parks import recommend_parks_api
 import traceback

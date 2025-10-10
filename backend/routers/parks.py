@@ -1,10 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
-from db import engine
-import os
-import requests
+from ..db import engine
+import os, requests, time
 from dotenv import load_dotenv
-import time
 
 load_dotenv()
 router = APIRouter()

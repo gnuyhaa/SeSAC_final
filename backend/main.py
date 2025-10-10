@@ -1,7 +1,7 @@
 from fastapi import FastAPI
-from routers import auth, parks, emotions, visit
-from routers import recommend_parks, recommend_category, recommend_for_user
-from routers import generate_summary, generate_weekly_review
+from backend.routers import auth, parks, emotions, visit
+from backend.routers import recommend_parks, recommend_category, recommend_for_user
+from backend.routers import generate_summary, generate_weekly_review
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 

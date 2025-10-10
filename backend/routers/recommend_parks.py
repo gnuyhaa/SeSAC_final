@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Body, HTTPException
 from typing import Dict, Any, List
 from sqlalchemy import text
-from db import engine
+from ..db import engine
 import traceback
 
 router = APIRouter()
