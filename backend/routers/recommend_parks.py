@@ -21,15 +21,11 @@ def recommend_parks_api(
             query_parks = text("""
                 SELECT ID, Park, Latitude, Longitude
                 FROM tb_parks
-                WHERE (
-                    6371 * 2 * ASIN(
-                        SQRT(
-                            POWER(SIN(RADIANS((:lat - latitude) / 2)), 2) +
-                            COS(RADIANS(:lat)) * COS(RADIANS(latitude)) *
-                            POWER(SIN(RADIANS((:lon - longitude) / 2)), 2)
-                        )
-                    )
-                ) <= 5;
+                WHERE (6371 * ACOS(
+                       COS(RADIANS(:lat)) * COS(RADIANS(latitude)) *
+                       COS(RADIANS(longitude) - RADIANS(:lon)) +
+                       SIN(RADIANS(:lat)) * SIN(RADIANS(latitude))
+                   )) <= 5;
             """)
             parks_list = conn.execute(query_parks, {"lat": lat, "lon": lon}).fetchall()
             print("parks_list 길이:", len(parks_list)) ### 
