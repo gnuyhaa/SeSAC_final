@@ -25,19 +25,21 @@ def parks_and_scores_in_5km(latitude, longitude):
     # 사용자 현재 위치부터 반경 5km이내 공원 가져오는 SELECT문 (python코드로 걸러내는 것 보다 이게 빠름)
     cur = conn.cursor()
     query = """
-    SELECT 
-        s.ParkID, s.ParkName, s.Nature, s.Convenience, s.Safety, s.Activity, s.Social, s.Trust,
-        p.Latitude, p.Longitude,
-        (6371 * ACOS(
-            COS(RADIANS(%s)) * COS(RADIANS(p.latitude)) *
-            COS(RADIANS(p.longitude) - RADIANS(%s)) +
-            SIN(RADIANS(%s)) * SIN(RADIANS(p.latitude))
-        )) AS distance
-    FROM tb_parks_score s
-    JOIN tb_parks p ON s.ParkID = p.ID
-    HAVING distance <= 5
-    ORDER BY distance;
-    """
+        SELECT 
+            s.ParkID,
+            p.Park AS ParkName,
+            s.Nature, s.Convenience, s.Safety, s.Activity, s.Social, s.Trust,
+            p.Latitude, p.Longitude,
+            (6371 * ACOS(
+                COS(RADIANS(%s)) * COS(RADIANS(p.latitude)) *
+                COS(RADIANS(p.longitude) - RADIANS(%s)) +
+                SIN(RADIANS(%s)) * SIN(RADIANS(p.latitude))
+            )) AS distance
+        FROM tb_parks_score s
+        JOIN tb_parks p ON s.ParkID = p.ID
+        HAVING distance <= 5
+        ORDER BY distance;
+        """
 
     # 사용자한테 받은 위도, 경도
     cur.execute(query, (latitude, longitude, latitude))
