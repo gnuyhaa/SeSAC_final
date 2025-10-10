@@ -17,8 +17,9 @@ def generate_summary_api(request: SummaryRequest):
     - 동작: LLM 실행 → 요약 DB 저장 → 완료 메시지 반환
     """
     try:
-        summary(request.nickname)
-        return {"message": f"{request.nickname} 님의 요약이 성공적으로 생성되었습니다."}
+        summary_result = summary(request.nickname)
+        return {"message": f"{request.nickname} 님의 요약이 성공적으로 생성되었습니다.",
+                "summary": summary_result}
     except Exception as e:
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"요약 생성 중 오류 발생: {str(e)}")
