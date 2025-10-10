@@ -81,8 +81,8 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
 
             # 3. 공원 추천
             recommended_parks = recommend_from_scored_parks(lat, lon, emotions, top_n=top_n_parks)            
-            p = [p.get("Park", "") or p.get("ParkName", "") for p in recommended_parks] + [None]*6 
-            print(f"[{user_nickname}] 추천 공원:", [park.get("Park", "") or park.get("ParkName", "") for park in recommended_parks])
+            p = [p.get("Park", "") for p in recommended_parks] + [None]*6 
+            print(f"[{user_nickname}] 추천 공원:", [park.get("Park", "") for park in recommended_parks])
 
             # DB 저장 - tb_users_parks_recommend
             insert_parks = text("""
