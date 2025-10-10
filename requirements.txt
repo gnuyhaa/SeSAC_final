@@ -7,3 +7,5 @@ pydantic
 bcrypt
 pyjwt
 pymysql
+langchain
+langchain-openai
