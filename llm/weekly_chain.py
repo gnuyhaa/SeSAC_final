@@ -4,6 +4,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import JsonOutputParser
 import os
+import pytz
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -13,7 +14,8 @@ load_dotenv()
 # 파이썬 일주일은 월요일이 한 주의 시작
 def get_last_week_range():
     # 현재 시스템(한국 로컬) 기준 시각 사용
-    today = datetime.datetime.now()
+    tz = pytz.timezone("Asia/Seoul")
+    today = datetime.datetime.now(tz)
 
     # 이번 주 월요일 00시 계산
     start_of_this_week = today - datetime.timedelta(days=today.weekday())
@@ -22,6 +24,10 @@ def get_last_week_range():
     # 지난주 월요일 ~ 지난주 일요일
     start_of_last_week = start_of_this_week - datetime.timedelta(days=7)
     end_of_last_week = start_of_this_week - datetime.timedelta(seconds=1)
+    
+    # DB의 DATETIME은 tzinfo가 없으므로 제거
+    start_of_last_week = start_of_last_week.replace(tzinfo=None)
+    end_of_last_week = end_of_last_week.replace(tzinfo=None)
 
     return start_of_last_week, end_of_last_week
 
@@ -38,6 +44,7 @@ def weekly_review(nickname:str):
 
 
     start_of_last_week, end_of_last_week = get_last_week_range()
+    tz = pytz.timezone("Asia/Seoul")
     
     # 1️⃣ 해당 주차 총평 이미 있는지 확인
     with conn.cursor(pymysql.cursors.DictCursor) as cur:
@@ -57,7 +64,7 @@ def weekly_review(nickname:str):
     with conn.cursor(pymysql.cursors.DictCursor) as cur:
         cur.execute("""
             SELECT Create_date, TopEmotions, EmotionsSummary, RecommandCates, RecommandParks
-            FROM tb_user_summary
+            FROM tb_users_summary
             WHERE nickname = %s
               AND Create_date BETWEEN %s AND %s
             ORDER BY Create_date ASC
@@ -114,8 +121,8 @@ def weekly_review(nickname:str):
         INSERT INTO tb_weekly_review (nickname, create_date, review)
         VALUES (%s, %s, %s)
         """
-        # tb_weekly_review의 create_date는 총평을 받은 그 순간 시간을 넣게 해놨음
-        cur.execute(sql, (nickname, datetime.datetime.now(), weekly_review['review']))
+        now_kst = datetime.datetime.now(tz).replace(tzinfo=None)
+        cur.execute(sql, (nickname, datetime.datetime.now(now_kst), weekly_review['review']))
         conn.commit()
 
     conn.close()
