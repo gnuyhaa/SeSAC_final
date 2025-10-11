@@ -27,7 +27,7 @@ def parks_and_scores_in_5km(latitude, longitude):
     query = """
         SELECT 
             s.ParkID,
-            p.Park AS ParkName,
+            p.Park,
             s.Nature, s.Convenience, s.Safety, s.Activity, s.Social, s.Trust,
             p.Latitude, p.Longitude,
             (6371 * ACOS(
