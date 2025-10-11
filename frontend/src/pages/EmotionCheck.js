@@ -68,17 +68,14 @@ export default function EmotionCheck({ user }) {
                 }
               );
             } catch (err) {
-              console.error("위치 저장 실패:", err);
             }
           },
           (err) => {
-            console.error("위치 권한 거부:", err);
           }
         );
       }
       navigate("/waiting", { state: { emotions: values } });
     } catch (err) {
-      console.error("요청 실패:", err);
       alert("처방 중 오류가 발생했습니다. 다시 시도해주세요.");
       setIsLoading(false);
     }
