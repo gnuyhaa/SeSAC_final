@@ -42,7 +42,7 @@ def weekly_review(nickname:str):
     cur = conn.cursor(pymysql.cursors.DictCursor)
 
     query = """
-        SELECT * FROM tb_users_emotions
+        SELECT * FROM tb_users_summary
         WHERE nickname = %s
         AND create_date BETWEEN %s AND %s
         """
