@@ -4,6 +4,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import JsonOutputParser
 import os
+import pytz
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -11,20 +12,19 @@ load_dotenv()
 # 전 주 날짜 가져오기(datetime 맞춰서 시간까지 가져오기)
 # 파이썬 일주일은 월요일이 한 주의 시작
 def get_last_week_range():
-    today = datetime.date.today()
-    
-    # 이번 주 월요일 (00:00:00 기준)
-    this_week_monday = today - datetime.timedelta(days=today.weekday())
-    
-    # 지난 주 월요일과 일요일
-    last_week_monday = this_week_monday - datetime.timedelta(days=7)
-    last_week_sunday = this_week_monday - datetime.timedelta(days=1)
-    
-    # DATETIME 범위로 변환
-    start_dt = datetime.datetime.combine(last_week_monday, datetime.time.min)  # 00:00:00
-    end_dt   = datetime.datetime.combine(last_week_sunday, datetime.time.max)  # 23:59:59.999999
-    
-    return start_dt, end_dt
+    # dayjs().tz()와 동일하게 Asia/Seoul 기준 타임존 적용
+    tz = pytz.timezone("Asia/Seoul")
+    today = datetime.datetime.now(tz)
+
+    # dayjs: startOf("week") → 일요일 기준, +1일 → 월요일
+    start_of_this_week = today - datetime.timedelta(days=today.weekday())  # 월요일 00시
+    start_of_this_week = tz.localize(start_of_this_week.replace(hour=0, minute=0, second=0, microsecond=0)) if start_of_this_week.tzinfo is None else start_of_this_week.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # 지난주 월요일과 지난주 일요일
+    start_of_last_week = start_of_this_week - datetime.timedelta(days=7)
+    end_of_last_week = start_of_this_week - datetime.timedelta(seconds=1)
+
+    return start_of_last_week, end_of_last_week
 
 def weekly_review(nickname:str):
     # DB연결
@@ -38,16 +38,17 @@ def weekly_review(nickname:str):
     )
 
 
-    start_dt, end_dt = get_last_week_range()
+    start_of_last_week, end_of_last_week = get_last_week_range()
     # 사용 요약본 일주일치 가져오기
     cur = conn.cursor(pymysql.cursors.DictCursor)
 
-    cur.execute("""
-        SELECT *
-        FROM tb_users_summary  
+    query = """
+        SELECT * FROM tb_users_emotions
         WHERE nickname = %s
-        AND Create_date BETWEEN %s AND %s
-        ;""", (nickname, start_dt, end_dt))
+        AND create_date BETWEEN %s AND %s
+        """
+    cur.execute(query, (nickname, start_of_last_week, end_of_last_week))
+
     week_list = cur.fetchall()
 
     # 한 주에 사용량이 3번이 안되면
