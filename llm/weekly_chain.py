@@ -42,89 +42,97 @@ def weekly_review(nickname:str):
         charset=os.getenv("DB_CHARSET", "utf8mb4")
     )
 
+    try:
+        start_of_last_week, end_of_last_week = get_last_week_range()
+        tz = pytz.timezone("Asia/Seoul")
+        
+        # 1️⃣ 지난주 총평이 이미 있는지 확인 (지난주 총평은 이번주에 생성됨)
+        with conn.cursor(pymysql.cursors.DictCursor) as cur:
+            cur.execute("""
+                SELECT review
+                FROM tb_weekly_review
+                WHERE nickname = %s
+                AND create_date > %s
+                LIMIT 1
+            """, (nickname, end_of_last_week))  # end_of_last_week = 지난주 일요일 23:59:59
+            existing = cur.fetchone()
+            
+            if existing:
+                return existing['review'] # 이미 있으면 기존 총평 바로 반환
 
-    start_of_last_week, end_of_last_week = get_last_week_range()
-    tz = pytz.timezone("Asia/Seoul")
-    
-    # 1️⃣ 해당 주차 총평 이미 있는지 확인
-    with conn.cursor(pymysql.cursors.DictCursor) as cur:
-        cur.execute("""
-            SELECT review
-            FROM tb_weekly_review
-            WHERE nickname = %s
-              AND create_date BETWEEN %s AND %s
-            LIMIT 1
-        """, (nickname, start_of_last_week, end_of_last_week))
-        existing = cur.fetchone()
-        if existing:
+        # 2️⃣ 지난주 요약본 가져오기
+        with conn.cursor(pymysql.cursors.DictCursor) as cur:
+            cur.execute("""
+                SELECT Create_date, TopEmotions, EmotionsSummary, RecommandCates, RecommandParks
+                FROM tb_users_summary
+                WHERE nickname = %s
+                AND Create_date BETWEEN %s AND %s
+                ORDER BY Create_date ASC
+            """, (nickname, start_of_last_week, end_of_last_week))
+            week_list = cur.fetchall()
+
+        if len(week_list) < 3:
             conn.close()
-            return existing['review']  # 이미 있으면 기존 총평 바로 반환
+            return '요약할 데이터가 충분하지 않습니다.'
 
-    # 2️⃣ 지난주 요약본 가져오기
-    with conn.cursor(pymysql.cursors.DictCursor) as cur:
-        cur.execute("""
-            SELECT Create_date, TopEmotions, EmotionsSummary, RecommandCates, RecommandParks
-            FROM tb_users_summary
-            WHERE nickname = %s
-              AND Create_date BETWEEN %s AND %s
-            ORDER BY Create_date ASC
-        """, (nickname, start_of_last_week, end_of_last_week))
-        week_list = cur.fetchall()
+        # 3️⃣ LLM용 입력 텍스트 생성
+        contents = "\n\n".join(
+            [
+                f"Record {i+1} ({day['Create_date'].strftime('%m/%d %H:%M')})\n"
+                f"감정_top3: {day['TopEmotions']}\n"
+                f"감정_요약: {day['EmotionsSummary']}\n"
+                f"추천_카테고리: {day['RecommandCates']}\n"
+                f"추천_공원: {day['RecommandParks']}"
+                for i, day in enumerate(week_list)
+            ]
+        )
 
-    if len(week_list) < 3:
-        conn.close()
-        return '요약할 데이터가 충분하지 않습니다.'
+        weekly_text = {'nickname': nickname, 'conctents': contents}
 
-    # 3️⃣ LLM용 입력 텍스트 생성
-    conctents = "\n\n".join(
-        [
-            f"Record {i+1} ({day['Create_date'].strftime('%m/%d %H:%M')})\n"
-            f"감정_top3: {day['TopEmotions']}\n"
-            f"감정_요약: {day['EmotionsSummary']}\n"
-            f"추천_카테고리: {day['RecommandCates']}\n"
-            f"추천_공원: {day['RecommandParks']}"
-            for i, day in enumerate(week_list)
-        ]
-    )
+        # 4️⃣ LLM 총평 생성
+        overall_prompt = PromptTemplate.from_template("""
+        # Guidelines
+        - Use only the information provided.
+        - Do not make up information.
+        - Do not exaggerate.
 
-    weekly_text = {'nickname': nickname, 'conctents': conctents}
+        당신은 따뜻한 위로의 말을 전해주는 상담사입니다. 
+        아래는 한 사용자의 한 주 동안 서비스 이용 결과야. 
+        데이터 그대로 말하지 말고, 약간의 관찰과 해석, 따뜻한 격려를 담아서 총평을 작성해줘. 
+        말투는 사무적이지 않고 자연스럽게, 상담사가 말하듯 부드럽게 작성해.
+        **"사용자"라는 단어는 사용하지 마세요. 대신 UserNickname님이라고 한 번만 언급하세요.**
 
-    # 4️⃣ LLM 총평 생성
-    overall_prompt = PromptTemplate.from_template("""
-    # Guidelines
-    - Use only the information provided.
-    - Do not make up information.
-    - Do not exaggerate.
+        총평은 5줄 내외, 자연스러운 완전 문장으로 작성해주세요.
 
-    당신은 따뜻한 위로의 말을 전해주는 상담사입니다. 
-    아래는 한 사용자의 한 주 동안 서비스 이용 결과야. 
-    데이터 그대로 말하지 말고, 약간의 관찰과 해석, 따뜻한 격려를 담아서 총평을 작성해줘. 
-    말투는 사무적이지 않고 자연스럽게, 상담사가 말하듯 부드럽게 작성해.
-    **"사용자"라는 단어는 사용하지 마세요. 대신 UserNickname님이라고 한 번만 언급하세요.**
+        Inputs
+        UserNickname: {nickname}
+        주간 데이터: {conctents}
 
-    총평은 5줄 내외, 자연스러운 완전 문장으로 작성해주세요.
+        Return in JSON format:
+        "review": ""
+        """)
 
-    Inputs
-    UserNickname: {nickname}
-    주간 데이터: {conctents}
+        overall_chain = overall_prompt | ChatOpenAI(model="gpt-4o-mini", temperature=0.5) | JsonOutputParser()
+        weekly_review = overall_chain.invoke(weekly_text)
+        
+        # 5️⃣ 결과 저장 (주간 총평 1회만)
+        with conn.cursor() as cur:
+            sql = """
+            INSERT INTO tb_weekly_review (nickname, create_date, review)
+            VALUES (%s, %s, %s)
+            """
+            now_kst = datetime.datetime.now(tz).replace(tzinfo=None)
+            cur.execute(sql, (nickname, now_kst, weekly_review['review']))
+            conn.commit()
 
-    Return in JSON format:
-    "review": ""
-    """)
-
-    overall_chain = overall_prompt | ChatOpenAI(model="gpt-4o-mini", temperature=0.5) | JsonOutputParser()
-    weekly_review = overall_chain.invoke(weekly_text)
+        return weekly_review['review']
     
-    # 5️⃣ 결과 저장 (주간 총평 1회만)
-    with conn.cursor() as cur:
-        sql = """
-        INSERT INTO tb_weekly_review (nickname, create_date, review)
-        VALUES (%s, %s, %s)
-        """
-        now_kst = datetime.datetime.now(tz).replace(tzinfo=None)
-        cur.execute(sql, (nickname, datetime.datetime.now(now_kst), weekly_review['review']))
-        conn.commit()
+    except Exception as e:
+        print(f"[ERROR] weekly_review() failed for {nickname}: {str(e)}")
+        return f"에러가 발생했습니다: {str(e)}"
 
-    conn.close()
 
-    return weekly_review['review']
+    finally:
+        # DB 연결은 무조건 닫기
+        if conn:
+            conn.close()
