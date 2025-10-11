@@ -38,26 +38,40 @@ def weekly_review(nickname:str):
 
 
     start_of_last_week, end_of_last_week = get_last_week_range()
-    # 사용 요약본 일주일치 가져오기
-    cur = conn.cursor(pymysql.cursors.DictCursor)
+    
+    # 1️⃣ 해당 주차 총평 이미 있는지 확인
+    with conn.cursor(pymysql.cursors.DictCursor) as cur:
+        cur.execute("""
+            SELECT review
+            FROM tb_weekly_review
+            WHERE nickname = %s
+              AND create_date BETWEEN %s AND %s
+            LIMIT 1
+        """, (nickname, start_of_last_week, end_of_last_week))
+        existing = cur.fetchone()
+        if existing:
+            conn.close()
+            return existing['review']  # 이미 있으면 기존 총평 바로 반환
 
-    query = """
-        SELECT * FROM tb_users_summary
-        WHERE nickname = %s
-        AND create_date BETWEEN %s AND %s
-        """
-    cur.execute(query, (nickname, start_of_last_week, end_of_last_week))
+    # 2️⃣ 지난주 요약본 가져오기
+    with conn.cursor(pymysql.cursors.DictCursor) as cur:
+        cur.execute("""
+            SELECT Create_date, TopEmotions, EmotionsSummary, RecommandCates, RecommandParks
+            FROM tb_user_summary
+            WHERE nickname = %s
+              AND Create_date BETWEEN %s AND %s
+            ORDER BY Create_date ASC
+        """, (nickname, start_of_last_week, end_of_last_week))
+        week_list = cur.fetchall()
 
-    week_list = cur.fetchall()
-
-    # 한 주에 사용량이 3번이 안되면
     if len(week_list) < 3:
+        conn.close()
         return '요약할 데이터가 충분하지 않습니다.'
 
-    # 일주일치 요약본 문자열 하나로 만들기
+    # 3️⃣ LLM용 입력 텍스트 생성
     conctents = "\n\n".join(
         [
-            f"Record {i+1} ({day['Create_date'].strftime('%m/%d %H:%M') if 'Create_date' in day else ''})\n"
+            f"Record {i+1} ({day['Create_date'].strftime('%m/%d %H:%M')})\n"
             f"감정_top3: {day['TopEmotions']}\n"
             f"감정_요약: {day['EmotionsSummary']}\n"
             f"추천_카테고리: {day['RecommandCates']}\n"
@@ -66,11 +80,9 @@ def weekly_review(nickname:str):
         ]
     )
 
-    # 사용자 이름, 일주일치 요약본 합쳐서 llm 넣을 재료 만들기
-    weekly_text = {}
-    weekly_text['nickname'] = nickname
-    weekly_text['conctents'] = conctents
-    # 최종 평가 llm
+    weekly_text = {'nickname': nickname, 'conctents': conctents}
+
+    # 4️⃣ LLM 총평 생성
     overall_prompt = PromptTemplate.from_template("""
     # Guidelines
     - Use only the information provided.
@@ -96,7 +108,7 @@ def weekly_review(nickname:str):
     overall_chain = overall_prompt | ChatOpenAI(model="gpt-4o-mini", temperature=0.5) | JsonOutputParser()
     weekly_review = overall_chain.invoke(weekly_text)
     
-    # 총평 저장 (create_date는 총평을 만드는 날짜로 인서트)
+    # 5️⃣ 결과 저장 (주간 총평 1회만)
     with conn.cursor() as cur:
         sql = """
         INSERT INTO tb_weekly_review (nickname, create_date, review)
