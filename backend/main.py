@@ -24,7 +24,7 @@ app.include_router(generate_weekly_review.router)
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://growth-doctor-front.web.app", "http://localhost:3000", "http://176.16.0.55:3000"],  
+    allow_origins=["https://maeum-c.web.app", "http://localhost:3000", "http://176.16.0.55:3000"],  
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
