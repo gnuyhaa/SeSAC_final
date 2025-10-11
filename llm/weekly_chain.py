@@ -4,23 +4,22 @@ from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import JsonOutputParser
 import os
-import pytz
 from dotenv import load_dotenv
 
 load_dotenv()
 
+
 # 전 주 날짜 가져오기(datetime 맞춰서 시간까지 가져오기)
 # 파이썬 일주일은 월요일이 한 주의 시작
 def get_last_week_range():
-    # dayjs().tz()와 동일하게 Asia/Seoul 기준 타임존 적용
-    tz = pytz.timezone("Asia/Seoul")
-    today = datetime.datetime.now(tz)
+    # 현재 시스템(한국 로컬) 기준 시각 사용
+    today = datetime.datetime.now()
 
-    # dayjs: startOf("week") → 일요일 기준, +1일 → 월요일
-    start_of_this_week = today - datetime.timedelta(days=today.weekday())  # 월요일 00시
-    start_of_this_week = tz.localize(start_of_this_week.replace(hour=0, minute=0, second=0, microsecond=0)) if start_of_this_week.tzinfo is None else start_of_this_week.replace(hour=0, minute=0, second=0, microsecond=0)
+    # 이번 주 월요일 00시 계산
+    start_of_this_week = today - datetime.timedelta(days=today.weekday())
+    start_of_this_week = start_of_this_week.replace(hour=0, minute=0, second=0, microsecond=0)
 
-    # 지난주 월요일과 지난주 일요일
+    # 지난주 월요일 ~ 지난주 일요일
     start_of_last_week = start_of_this_week - datetime.timedelta(days=7)
     end_of_last_week = start_of_this_week - datetime.timedelta(seconds=1)
 
