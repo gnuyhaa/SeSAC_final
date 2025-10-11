@@ -49,44 +49,108 @@ export default function GreenListMap() {
     return R * c;
   }
 
-  useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const coords = {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            accuracy: pos.coords.accuracy,
+useEffect(() => {
+  async function init() {
+    // ✅ 위치 탐색 통합 함수
+    async function getUserLocation() {
+      console.log("⏱️ 위치 요청 시작");
+
+      const gpsOptions = {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      };
+
+      const getGPS = () =>
+        new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              console.log("✅ GPS 위치 획득", pos.coords);
+              resolve({ method: "GPS", coords: pos.coords });
+            },
+            (err) => {
+              console.warn("⚠️ GPS 위치 실패", err.code, err.message);
+              reject(err);
+            },
+            gpsOptions
+          );
+        });
+
+      const getIP = async () => {
+        try {
+          const res = await fetch("https://ipapi.co/json/");
+          const data = await res.json();
+          console.log("🌍 IP 기반 위치 획득", data);
+          return {
+            method: "IP",
+            coords: { latitude: data.latitude, longitude: data.longitude },
           };
-          setCenter(coords);
-          setMyPosition(coords);
-        },
-        (err) => {
-          console.error("위치 권한 거부 또는 에러:", err);
+        } catch (err) {
+          console.error("❌ IP 위치 획득 실패", err);
+          throw err;
         }
-      );
+      };
+
+      try {
+        const gps = await getGPS();
+        return gps;
+      } catch {
+        console.log("🔁 GPS 실패 → IP fallback 시도");
+        try {
+          const ip = await getIP();
+          return ip;
+        } catch (err) {
+          console.error("💥 위치 획득 완전 실패", err);
+          return null;
+        }
+      }
     }
 
-    axios.get(`${process.env.REACT_APP_API_URL}/parks`)
+    // ✅ 실행
+    const loc = await getUserLocation();
+    if (loc) {
+      const coords = {
+        lat: loc.coords.latitude,
+        lng: loc.coords.longitude,
+      };
+      setCenter(coords);
+      setMyPosition(coords);
+    } else {
+      setCenter({ lat: 37.5665, lng: 126.9780 });
+      setMyPosition(null);
+    }
+
+    // ✅ 공원 목록 불러오기
+    axios
+      .get(`${process.env.REACT_APP_API_URL}/parks`)
       .then((res) => {
-        console.log("parks API response:", res.data);
         setParks(res.data);
-        const uniqueDistricts = [...new Set(res.data.map((p) => p.address.split(" ")[1]))];
-        uniqueDistricts.sort((a, b) => a.localeCompare(b, "ko", { sensitivity: "base" }));
+        const uniqueDistricts = [
+          ...new Set(res.data.map((p) => p.address.split(" ")[1])),
+        ];
+        uniqueDistricts.sort((a, b) =>
+          a.localeCompare(b, "ko", { sensitivity: "base" })
+        );
         setDistricts(uniqueDistricts);
       })
       .catch((err) => console.error("parks API error:", err));
 
-    axios.get(`${process.env.REACT_APP_API_URL}/park_emotion`)
+    // ✅ 공원 감정 데이터
+    axios
+      .get(`${process.env.REACT_APP_API_URL}/park_emotion`)
       .then((res) => setParkEmotions(res.data))
       .catch((err) => console.error("emotions API error:", err));
-  }, []);
+  }
+
+  init();
+}, []);
+
 
   const handleSelect = (park) => {
     setCenter({ lat: park.lat, lng: park.lon });
     setSelectedPark(park);
 
-    axios.get(`${process.env.REACT_APP_API_URL}/park_weather/${encodeURIComponent(park.name)}?lat=${park.lat}&lon=${park.lon}`)
+    axios.get(`${process.env.REACT_APP_API_URL}/park_weather`, {params: {lat: park.lat, lon: park.lon}})
       .then((res) => setWeather(res.data))
       .catch((err) => console.error("weather API error:", err));
   };
@@ -293,7 +357,9 @@ export default function GreenListMap() {
               </div>
               <p style={{ margin: "8px 0 4px 0" }}>{selectedPark.address}</p>
               {selectedPark.tel && <p style={{ margin: "0 0 8px 0", color: "#555" }}>{selectedPark.tel}</p>}
-              {selectedPark.des && <p style={{ margin: "0 0 12px 0", color: "#444"}}>{selectedPark.des}</p>}
+              {selectedPark.des && selectedPark.des.trim() !== "" && (
+                <p style={{ margin: "0 0 12px 0", color: "#444" }}>{selectedPark.des}</p>
+              )}
               <button
                 onClick={() => {
                   setSelectedPark(null);
@@ -341,7 +407,12 @@ export default function GreenListMap() {
 
                 <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
                   {filteredForList.map((park) => {
-                    const emotion = parkEmotions.find((e) => e.name === park.name);
+                    const emotion = parkEmotions.find(
+                      (e) =>
+                        e.name === park.name &&
+                        Math.abs(e.lat - park.lat) < 0.0001 &&
+                        Math.abs(e.lon - park.lon) < 0.0001
+                    );
                     return (
                       <li
                         key={`${park.id || park.name}-${park.lat}-${park.lon}`}
@@ -362,7 +433,7 @@ export default function GreenListMap() {
                         </div>
                         <p style={{ margin: "4px 0 2px 0", color: "#555" }}>{park.address}</p>
                         {emotion && (
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: "3px", marginTop: "6px" }}>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: "2px", marginTop: "6px" }}>
                             {[emotion.keyword1, emotion.keyword2, emotion.keyword3]
                               .filter(Boolean)
                               .map((keyword) => (
