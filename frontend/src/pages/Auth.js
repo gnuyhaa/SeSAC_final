@@ -53,7 +53,6 @@ export default function AuthPage({ onLoginSuccess }) {
         password: password,
       });
 
-      console.log("로그인 성공:", response.data);
       localStorage.setItem("token", response.data.access_token);
       if (onLoginSuccess) onLoginSuccess(response.data);
 
@@ -107,7 +106,6 @@ export default function AuthPage({ onLoginSuccess }) {
       });
 
       toast.success(`${nickname}님, 환영합니다!`);
-      console.log(response.data);
       
       // 회원가입 후 로그인 폼으로 전환
       setIsSignUp(false);
