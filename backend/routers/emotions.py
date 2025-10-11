@@ -5,7 +5,6 @@ from datetime import datetime, timedelta, timezone
 import traceback
 
 router = APIRouter()
-KST = timezone(timedelta(hours=9))  # 한국 표준시
 
 @router.post("/emotions")
 def save_emotions(data: dict):
@@ -15,13 +14,12 @@ def save_emotions(data: dict):
         with engine.begin() as conn:
             conn.execute(text("""
                 INSERT INTO tb_users_emotions (
-                    nickname, create_date, depression, anxiety, stress, happiness, achievement, energy, latitude, longitude
+                    nickname, depression, anxiety, stress, happiness, achievement, energy, latitude, longitude
                 ) VALUES (
-                    :nickname, :create_date, :depression, :anxiety, :stress, :happiness, :achievement, :energy, :latitude, :longitude
+                    :nickname, :depression, :anxiety, :stress, :happiness, :achievement, :energy, :latitude, :longitude
                 )
             """), {
                 "nickname": data["nickname"],
-                "create_date": datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S"), # 한국시간으로 저장
                 "depression": data["emotions"]["depression"],
                 "anxiety": data["emotions"]["anxiety"],
                 "stress": data["emotions"]["stress"],

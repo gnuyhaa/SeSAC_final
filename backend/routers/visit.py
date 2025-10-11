@@ -16,20 +16,15 @@ def toggle_visit_status(nickname: str, park_id: int, create_date: str):
     공원 방문 시: 로그 추가(tb_parks_visit_log에 기록) + 상태 테이블 업데이트(tb_users_parks_status)
     방문 해제 시: 상태 해제 (is_visited=0)
     """
-    try:
-        now_dt = datetime.now(KST)
-        now_str = now_dt.strftime("%Y-%m-%d %H:%M:%S")
-        
+    try: 
         with engine.begin() as conn:
             # 클릭할 때마다 무조건 로그 INSERT
             conn.execute(text("""
-                INSERT INTO tb_parks_visit_log (nickname, park_id, create_date, visit_date)
-                VALUES (:nickname, :park_id, :create_date, :visit_date)
+                INSERT INTO tb_parks_visit_log (nickname, park_id)
+                VALUES (:nickname, :park_id)
             """), {
                 "nickname": nickname,
-                "park_id": park_id,
-                "create_date": create_date,
-                "visit_date": now_str
+                "park_id": park_id
             })
 
             # park_id별 누적 방문 횟수 계산
@@ -40,18 +35,14 @@ def toggle_visit_status(nickname: str, park_id: int, create_date: str):
 
             # 상태 테이블(tb_users_parks_status) 갱신
             conn.execute(text("""
-                INSERT INTO tb_users_parks_status (nickname, park_id, is_visited, visit_count, visit_date, updated_at)
-                VALUES (:nickname, :park_id, 1, :visit_count, :visit_date, :updated_at)
+                INSERT INTO tb_users_parks_status (nickname, park_id, is_visited, visit_count)
+                VALUES (:nickname, :park_id, 1, :visit_count)
                 ON DUPLICATE KEY UPDATE
-                    visit_count = :visit_count,
-                    visit_date = :visit_date,
-                    updated_at = :updated_at
+                    visit_count = :visit_count
             """), {
                 "nickname": nickname,
                 "park_id": park_id,
-                "visit_count": visit_count,
-                "visit_date": now_str,
-                "updated_at": now_str
+                "visit_count": visit_count
             })
 
         return {"status": "success", "visit_count": visit_count}
