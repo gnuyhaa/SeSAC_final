@@ -28,7 +28,7 @@ def parks_and_scores_in_5km(latitude, longitude):
         SELECT 
             s.ParkID,
             p.Park,
-            s.Nature, s.Convenience, s.Safety, s.Activity, s.Social, s.Trust,
+            s.Nature, s.Convenience, s.Safety, s.Activity, s.Social, s.Coverage,
             p.Latitude, p.Longitude,
             (6371 * ACOS(
                 COS(RADIANS(%s)) * COS(RADIANS(p.latitude)) *
@@ -90,7 +90,7 @@ def blend_emotion_weights(emotion_levels: Dict[str, int]) -> Dict[str, float]:
 def score_with_stored_indicators(park: Dict[str, Any], weights: Dict[str, float]) -> Dict[str, float]:
     """
     저장된 지표값 × 통합 가중치 → raw, final(신뢰도 있으면 곱)
-    park 예: {"Name":"효창<시공원>", "Nature":0.446, "Convenience":0.462, "Safety":0.677, "Activity":1.0, "Social":0.15, "Trust":0.72}
+    park 예: {"Name":"효창<시공원>", "Nature":0.446, "Convenience":0.462, "Safety":0.677, "Activity":1.0, "Social":0.15, "Coverage":0.72}
     """
     dims = ['Name', 'Nature', 'Convenience', 'Safety', 'Activity', 'Social']
     raw = 0.0
@@ -102,15 +102,15 @@ def score_with_stored_indicators(park: Dict[str, Any], weights: Dict[str, float]
             wsum += weights.get(d, 0.0)
     raw = (raw/wsum) if wsum > 0 else None
 
-    Trust = park.get("Trust", None)
+    Coverage = park.get("Coverage", None)
     if raw is None:
         final = None
     else:
-        final = raw * float(Trust) if isinstance(Trust, (int,float)) else raw
+        final = raw * float(Coverage) if isinstance(Coverage, (int,float)) else raw
 
     return {
         "raw_score": None if raw is None else round(raw, 3),
-        'Trust': None if raw is None else round(Trust, 3),
+        'Coverage': None if raw is None else round(Coverage, 3),
         "final_score": None if final is None else round(final, 3)
     }
 
@@ -129,7 +129,7 @@ def recommend_from_scored_parks(latitude, longitude, emotion_levels: Dict[str, i
             "ID": p['ParkID'], # 공원 ID
             "Park": p.get("Park",""), # 이름
             "raw_score": s["raw_score"], # 원점수
-            "Trust": s["Trust"], # 신뢰도(0/NaN 구별)
+            "Coverage": s["Coverage"], # 신뢰도(0/NaN 구별)
             "final_score": s["final_score"], # 최종 점수
         })
     # 점수 높은 순으로 정리
