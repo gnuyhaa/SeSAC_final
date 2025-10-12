@@ -121,7 +121,6 @@ def get_parks_emotion():
 
     results = [
         {
-            "id": row["ID"],
             "name": row["Park"], 
             "address": row["Address"],   
             "type": row["Class"],   
@@ -151,6 +150,7 @@ def get_parks():
 
     results = [
         {
+            "id": row["ID"],            
             "name": row["Park"], 
             "address" : row["Address"],   
             "type" : row["Class"],   
