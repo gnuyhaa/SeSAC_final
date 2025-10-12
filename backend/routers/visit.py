@@ -21,11 +21,11 @@ def toggle_visit_status(nickname: str, park_id: int, create_date: str):
             # 클릭할 때마다 무조건 로그 INSERT
             conn.execute(text("""
                 INSERT INTO tb_parks_visit_log (nickname, park_id, create_date)
-                VALUES (:nickname,:create_date, :park_id)
+                VALUES (:nickname,:park_id, :create_date)
             """), {
                 "nickname": nickname,
-                "create_date": create_date,
-                "park_id": park_id
+                "park_id": park_id,
+                "create_date": create_date
             })
 
             # park_id별 누적 방문 횟수 계산
