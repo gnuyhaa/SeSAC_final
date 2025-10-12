@@ -13,40 +13,79 @@ KST = timezone(timedelta(hours=9))  # 한국 표준시
 @router.post("/toggle_visit_status")
 def toggle_visit_status(nickname: str, park_id: int, create_date: str):
     """
-    공원 방문 시: 로그 추가(tb_parks_visit_log에 기록) + 상태 테이블 업데이트(tb_users_parks_status)
-    방문 해제 시: 상태 해제 (is_visited=0)
+    같은 처방(create_date)에서 같은 공원(park_id)을 다시 누르면 토글 OFF.
+    그렇지 않으면 새 방문으로 ON.
     """
-    try: 
+    try:
         with engine.begin() as conn:
-            # 클릭할 때마다 무조건 로그 INSERT
-            conn.execute(text("""
-                INSERT INTO tb_parks_visit_log (nickname, park_id, create_date)
-                VALUES (:nickname,:park_id, :create_date)
+            # 같은 처방에서 이미 클릭한 기록이 있는지 확인
+            existing = conn.execute(text("""
+                SELECT id FROM tb_parks_visit_log
+                WHERE nickname = :nickname 
+                  AND park_id = :park_id 
+                  AND create_date = :create_date
             """), {
                 "nickname": nickname,
                 "park_id": park_id,
                 "create_date": create_date
-            })
+            }).mappings().first()
 
-            # park_id별 누적 방문 횟수 계산
-            visit_count = conn.execute(text("""
-                SELECT COUNT(*) FROM tb_parks_visit_log
-                WHERE nickname = :nickname AND park_id = :park_id
-            """), {"nickname": nickname, "park_id": park_id}).scalar()
+            if existing:
+                # 이미 존재하면 OFF (삭제)
+                conn.execute(text("""
+                    DELETE FROM tb_parks_visit_log
+                    WHERE id = :id
+                """), {"id": existing["id"]})
 
-            # 상태 테이블(tb_users_parks_status) 갱신
-            conn.execute(text("""
-                INSERT INTO tb_users_parks_status (nickname, park_id, is_visited, visit_count)
-                VALUES (:nickname, :park_id, 1, :visit_count)
-                ON DUPLICATE KEY UPDATE
-                    visit_count = :visit_count
-            """), {
-                "nickname": nickname,
-                "park_id": park_id,
-                "visit_count": visit_count
-            })
+                # 상태 OFF로 변경
+                conn.execute(text("""
+                    UPDATE tb_users_parks_status
+                    SET is_visited = 0
+                    WHERE nickname = :nickname AND park_id = :park_id
+                """), {
+                    "nickname": nickname,
+                    "park_id": park_id
+                })
 
-        return {"status": "success", "visit_count": visit_count}
+                action = "off"
+
+            else:
+                # 없으면 ON (새 방문 추가)
+                conn.execute(text("""
+                    INSERT INTO tb_parks_visit_log (nickname, park_id, create_date, visit_date)
+                    VALUES (:nickname, :park_id, :create_date, NOW())
+                """), {
+                    "nickname": nickname,
+                    "park_id": park_id,
+                    "create_date": create_date
+                })
+
+                # park_id별 누적 방문 횟수 다시 계산
+                visit_count = conn.execute(text("""
+                    SELECT COUNT(*) FROM tb_parks_visit_log
+                    WHERE nickname = :nickname AND park_id = :park_id
+                """), {
+                    "nickname": nickname,
+                    "park_id": park_id
+                }).scalar()
+
+                # 상태 테이블 갱신
+                conn.execute(text("""
+                    INSERT INTO tb_users_parks_status (nickname, park_id, is_visited, visit_count, visit_date)
+                    VALUES (:nickname, :park_id, 1, :visit_count, NOW())
+                    ON DUPLICATE KEY UPDATE
+                        is_visited = 1,
+                        visit_count = :visit_count,
+                        visit_date = NOW()
+                """), {
+                    "nickname": nickname,
+                    "park_id": park_id,
+                    "visit_count": visit_count
+                })
+
+                action = "on"
+
+        return {"status": "success", "action": action}
 
     except Exception:
         traceback.print_exc()
