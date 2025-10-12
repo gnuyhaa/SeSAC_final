@@ -4,14 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import Lottie from "lottie-react";
 import axios from "axios";
 import pillsAnimation from "../assets/pills.json";
-import {
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  ResponsiveContainer,
-} from "recharts";
+import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer } from "recharts";
 import { toast } from "react-toastify";
 import { Typewriter } from "react-simple-typewriter";
 import { PiSealCheckFill } from "react-icons/pi";
@@ -91,65 +84,52 @@ export default function WaitingPage({ user }) {
       try {
         const res = await axios.get("https://ipapi.co/json/");
         const { latitude, longitude } = res.data;
-        console.log("🌍 IP 기반 위치:", latitude, longitude);
         return { lat: latitude, lng: longitude };
       } catch (err) {
-        console.error("⚠️ IP 기반 위치 조회 실패:", err);
         return null;
       }
     }
 
     async function handlePosition(lat, lng) {
-      if (inFlightRef.current) {
-        console.log("🔁 handlePosition skipped (in-flight)");
-        return;
-      }
+      if (inFlightRef.current) return;
       inFlightRef.current = true;
 
       try {
         if (position.lat && position.lng) return;
         setPosition({ lat, lng });
 
-        console.log("⏱️ 위치 업데이트 API 호출 시작");
         const locationStartTime = Date.now();
         await axios.put(
           `${process.env.REACT_APP_API_URL}/emotions/${user.nickname}/location`,
           { latitude: lat, longitude: lng }
         );
-        console.log(`✅ 위치 업데이트 완료 (${Date.now() - locationStartTime}ms)`);
 
-        console.log("⏱️ 추천 알고리즘 API 호출 시작");
         const recommendStartTime = Date.now();
         const recRes = await axios.post(
           `${process.env.REACT_APP_API_URL}/recommend_for_user`,
           null,
           { params: { user_nickname: user.nickname } }
         );
-        console.log(`✅ 추천 완료 (${Date.now() - recommendStartTime}ms)`);
         setCategories(recRes.data.recommended_categories || []);
       } catch (err) {
-        console.error("추천 처리 실패:", err);
       } finally {
         inFlightRef.current = false;
       }
     }
 
     if ("geolocation" in navigator) {
-      console.log("⏱️ 위치 정보 요청 시작");
 
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
-          console.log("✅ 위치 정보 획득:", pos.coords);
           await handlePosition(pos.coords.latitude, pos.coords.longitude);
         },
         async (err) => {
-          console.log("⚠️ GPS 위치 획득 실패:", err);
           if (!position.lat || !position.lng) {
             const approx = await getApproxLocation();
             if (approx) await handlePosition(approx.lat, approx.lng);
           }
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       );
     } else {
   (async () => {
@@ -162,7 +142,6 @@ export default function WaitingPage({ user }) {
 
   useEffect(() => {
     if (categories.length === 0) return;
-    console.log("카테고리 로드 완료, 처방전 표시");
     
     const timer = setTimeout(() => {
       setShowPrescription(true);
@@ -174,7 +153,6 @@ export default function WaitingPage({ user }) {
 
   useEffect(() => {
     if (!startAnimation) return;
-    console.log("애니메이션 시작");
     
     const runSequence = async () => {
       // 날짜 타이핑
@@ -204,17 +182,25 @@ export default function WaitingPage({ user }) {
         setVisibleCards(i + 1);
       }
       
+      // 모든 카드 표시 후 요약 생성
+      (async () => {
+        try {
+          await axios.post(`${process.env.REACT_APP_API_URL}/generate_summary`, {
+            nickname: user.nickname,
+        });
+        } catch (err) {
+        }
+})();
+
       // 모든 카드 표시 후 버튼 표시
       await new Promise(resolve => setTimeout(resolve, 500));
       setShowButton(true);
-      console.log("버튼 표시 - 사용자 대기");
     };
     
     runSequence();
   }, [startAnimation, today, user.nickname, categories, TYPING_SPEED]);
 
   const handleGoToMap = () => {
-    console.log("지도로 이동 시작");
     setShowButton(false);
     setShowStamp(true);
     
