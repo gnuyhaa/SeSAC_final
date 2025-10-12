@@ -100,20 +100,20 @@ def get_user_visits(nickname: str):
     try:
         with engine.connect() as conn:
             result = conn.execute(text("""
-                SELECT 
-                    p.ID AS park_id,
+                SELECT p.ID AS park_id,
                     p.Park AS park_name,
                     p.Address AS address,
-                    IFNULL(s.visit_count, 0) AS visit_count,
-                    IFNULL(s.is_visited, 0) AS is_visited,
-                    s.visit_date,
-                    v.create_date
-                FROM tb_parks p
+                    COALESCE(s.visit_count, 0) AS visit_count,
+                    COALESCE(s.is_visited, 0) AS is_visited,
+                    COALESCE(s.visit_date, NULL) AS visit_date,
+                    r.create_date AS recommend_date
+                FROM tb_users_parks_recommend r
+                JOIN tb_parks p 
+                    ON JSON_CONTAINS(JSON_ARRAY(r.park_1,r.park_2,r.park_3,r.park_4,r.park_5,r.park_6), JSON_QUOTE(p.Park))
                 LEFT JOIN tb_users_parks_status s
-                    ON s.park_id = p.ID AND s.nickname = :nickname
-                LEFT JOIN tb_parks_visit_log v
-                    ON v.park_id = p.ID AND v.nickname = :nickname
-                ORDER BY p.ID, v.create_date
+                    ON s.park_id = p.ID AND s.nickname = r.nickname
+                WHERE r.nickname = :nickname
+                ORDER BY r.create_date DESC, p.Park ASC
             """), {"nickname": nickname}).mappings().all()
         print(f"[{datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S')}] GET_USER_VISITS: nickname={nickname}, parks_count={len(result)}")
 
