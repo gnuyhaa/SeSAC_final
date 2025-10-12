@@ -101,19 +101,19 @@ def get_user_visits(nickname: str):
         with engine.connect() as conn:
             result = conn.execute(text("""
                 SELECT 
-                    v.create_date,
                     p.ID AS park_id,
                     p.Park AS park_name,
                     p.Address AS address,
-                    1 AS is_visited,
-                    s.visit_count,
-                    s.visit_date
-                FROM tb_parks_visit_log v
-                JOIN tb_parks p ON v.park_id = p.ID
+                    IFNULL(s.visit_count, 0) AS visit_count,
+                    IFNULL(s.is_visited, 0) AS is_visited,
+                    s.visit_date,
+                    v.create_date
+                FROM tb_parks p
                 LEFT JOIN tb_users_parks_status s
-                    ON s.park_id = v.park_id AND s.nickname = v.nickname
-                WHERE v.nickname = :nickname
-                ORDER BY v.create_date DESC, p.Park ASC
+                    ON s.park_id = p.ID AND s.nickname = :nickname
+                LEFT JOIN tb_parks_visit_log v
+                    ON v.park_id = p.ID AND v.nickname = :nickname
+                ORDER BY p.ID, v.create_date
             """), {"nickname": nickname}).mappings().all()
         print(f"[{datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S')}] GET_USER_VISITS: nickname={nickname}, parks_count={len(result)}")
 
