@@ -40,7 +40,8 @@ def toggle_visit_status(nickname: str, park_id: int, create_date: str):
                 # 상태 OFF로 변경
                 conn.execute(text("""
                     UPDATE tb_users_parks_status
-                    SET is_visited = 0
+                    SET is_visited = 0,
+                        visit_count = GREATEST(visit_count - 1, 0)
                     WHERE nickname = :nickname AND park_id = :park_id
                 """), {
                     "nickname": nickname,
@@ -99,19 +100,20 @@ def get_user_visits(nickname: str):
     try:
         with engine.connect() as conn:
             result = conn.execute(text("""
-                 SELECT 
+                SELECT 
+                    v.create_date,
                     p.ID AS park_id,
                     p.Park AS park_name,
                     p.Address AS address,
-                    IFNULL(s.visit_count, 0) AS visit_count,
-                    IFNULL(s.is_visited, 0) AS is_visited,
-                    s.visit_date,
-                    v.create_date 
-                FROM tb_parks p
+                    1 AS is_visited,
+                    s.visit_count,
+                    s.visit_date
+                FROM tb_parks_visit_log v
+                JOIN tb_parks p ON v.park_id = p.ID
                 LEFT JOIN tb_users_parks_status s
-                    ON p.ID = s.park_id AND s.nickname = :nickname
-                LEFT JOIN tb_parks_visit_log v
-                    ON v.park_id = p.ID AND v.nickname = :nickname
+                    ON s.park_id = v.park_id AND s.nickname = v.nickname
+                WHERE v.nickname = :nickname
+                ORDER BY v.create_date DESC, p.Park ASC
             """), {"nickname": nickname}).mappings().all()
         print(f"[{datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S')}] GET_USER_VISITS: nickname={nickname}, parks_count={len(result)}")
 
