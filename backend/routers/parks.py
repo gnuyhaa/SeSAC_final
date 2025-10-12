@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
 from ..db import engine
-import os, requests, time
+import os, requests, time, traceback
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -39,11 +39,65 @@ def get_pm10_label(pm10: float) -> str:
     else:
         return "매우 나쁨"
     
+# -----------------
+# 공원 날씨 + 미세먼지 함수
+# -----------------
+def get_park_weather(lat: float, lon: float):
+    try:
+        """
+        위도, 경도로 해당 위치의 실시간 날씨 + 미세먼지 정보를 가져옴
+        """
+        cache_key = f"{lat},{lon}"
+        cached = weather_cache.get(cache_key)
+        if cached and time.time() - cached["timestamp"] < CACHE_DURATION:
+            return cached["data"]
+
+        weather_params = {
+            "lat": lat,
+            "lon": lon,
+            "appid": API_KEY,
+            "units": "metric",
+            "lang": "kr"
+        }
+
+        weather_res = requests.get(BASE_URL, params=weather_params)
+        weather_data = weather_res.json()
+
+        air_res = requests.get(AIR_URL, params=weather_params)
+        air_data = air_res.json()
+
+        pm2_5 = air_data["list"][0]["components"]["pm2_5"]
+        pm10 = air_data["list"][0]["components"]["pm10"]
+
+        data = {
+            "lat": lat,
+            "lon": lon,
+            "weather": {
+                "temp": round(weather_data["main"]["temp"], 1),
+                "humidity": weather_data["main"]["humidity"],
+                "icon": weather_data["weather"][0]["icon"]
+            },
+            "air": {
+                "pm2_5": pm2_5,
+                "pm2_5_label": get_pm25_label(pm2_5),
+                "pm10": pm10,
+                "pm10_label": get_pm10_label(pm10)
+            }
+        }
+
+        weather_cache[cache_key] = {"timestamp": time.time(), "data": data}
+        return data
+        
+    except Exception as e:
+        print(f"[WARN] 날씨 API 오류 발생 : {e}")
+        # 날씨 정보가 없더라도 API 전체 실패 방지
+        return {"weather": None, "air": None}
+
 # --------------
 # 추천된 공원 리스트
 # --------------
 @router.get("/park_emotion")
-def get_parks():
+def get_parks_emotion():
     with engine.connect() as conn:
         query = text("""
             SELECT 
@@ -108,52 +162,82 @@ def get_parks():
     ]
     return results
 
-# -----------------
-# 공원 날씨 + 미세먼지 조회 (캐시적용)
-# -----------------
-
-@router.get("/park_weather")
-def get_park_weather(lat: float, lon: float):
+# ------------------
+# 공원 세부정보 
+# ------------------
+@router.get("/parks/{park_id}")
+def get_park_detail(park_id: int):
     """
-    위도, 경도로 해당 위치의 실시간 날씨 + 미세먼지 정보를 가져옴 (캐시 적용)
+    공원 상세정보: 기본정보 + 날씨 + 시설물
     """
-    cache_key = f"{lat},{lon}"
-    cached = weather_cache.get(cache_key)
-    if cached and time.time() - cached["timestamp"] < CACHE_DURATION:
-        return cached["data"]
+    try:
+        with engine.connect() as conn:
+            # 공원 기본정보
+            park_sql = text("""
+                SELECT 
+                    p.ID AS park_id,
+                    p.Park AS ParkName,
+                    p.Address,
+                    p.Tel AS PhoneNumber,
+                    p.Latitude,
+                    p.Longitude
+                FROM tb_parks p
+                WHERE p.ID = :park_id
+            """)
+            park = conn.execute(park_sql, {"park_id": park_id}).mappings().first()
+            if not park:
+                raise HTTPException(status_code=404, detail="Park not found")
 
-    weather_params = {
-        "lat": lat,
-        "lon": lon,
-        "appid": API_KEY,
-        "units": "metric",
-        "lang": "kr"
-    }
+            # 시설물 정보
+            facilities_sql = text("""
+                SELECT 
+                    Square, Trail, Pond, Fountain, Campground, Pavilion, Playground,
+                    Sports_ground, Fitness_facility, Cultural_facility, Zoo,
+                    Botanical_garden, Toilet, Parking, Convenience
+                FROM tb_parks_facilities
+                WHERE ParkID = :park_id
+            """)
+            facilities_row = conn.execute(facilities_sql, {"park_id": park_id}).mappings().first()
 
-    weather_res = requests.get(BASE_URL, params=weather_params)
-    weather_data = weather_res.json()
+            facilities_kor = []
+            if facilities_row:
+                facility_map = {
+                    "Square": "광장",
+                    "Trail": "산책로/등산로",
+                    "Pond": "연못",
+                    "Fountain": "분수",
+                    "Campground": "야영장/야유회장",
+                    "Pavilion": "정자",
+                    "Playground": "놀이터",
+                    "Sports_ground": "운동장",
+                    "Fitness_facility": "체력단련시설",
+                    "Cultural_facility": "문화시설",
+                    "Zoo": "동물원",
+                    "Botanical_garden": "식물원",
+                    "Toilet": "화장실",
+                    "Parking": "주차장",
+                    "Convenience": "편의시설",
+                }
+                for key, label in facility_map.items():
+                    if facilities_row[key]:
+                        facilities_kor.append(label)
 
-    air_res = requests.get(AIR_URL, params=weather_params)
-    air_data = air_res.json()
+            # 날씨 정보
+            weather_data = get_park_weather(park["Latitude"], park["Longitude"])
 
-    pm2_5 = air_data["list"][0]["components"]["pm2_5"]
-    pm10 = air_data["list"][0]["components"]["pm10"]
+            # 결과 합치기
+            result = {
+                "id": park["park_id"],
+                "name": park["ParkName"],
+                "address": park["Address"],
+                "tel": park["PhoneNumber"],
+                "weather": weather_data["weather"],
+                "air": weather_data["air"],
+                "facilities": facilities_kor
+            }
 
-    data = {
-        "lat": lat,
-        "lon": lon,
-        "weather": {
-            "temp": round(weather_data["main"]["temp"], 1),
-            "humidity": weather_data["main"]["humidity"],
-            "icon": weather_data["weather"][0]["icon"]
-        },
-        "air": {
-            "pm2_5": pm2_5,
-            "pm2_5_label": get_pm25_label(pm2_5),
-            "pm10": pm10,
-            "pm10_label": get_pm10_label(pm10)
-        }
-    }
+            return result
 
-    weather_cache[cache_key] = {"timestamp": time.time(), "data": data}
-    return data
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
