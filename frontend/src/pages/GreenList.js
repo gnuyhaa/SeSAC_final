@@ -1,7 +1,22 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { Map, CustomOverlayMap, ZoomControl, MapMarker, Circle } from "react-kakao-maps-sdk"; 
+import { Map, CustomOverlayMap, ZoomControl, MapMarker } from "react-kakao-maps-sdk"; 
 import { FiSliders } from "react-icons/fi"; 
+import campsite from "../assets/campsite.png"
+import court from "../assets/court.png";
+import fountain from "../assets/fountain.png";
+import garden from "../assets/garden.png";
+import gazebo from "../assets/gazebo.png";
+import gym from "../assets/gym.png";
+import parking from "../assets/parking.png";
+import playground from "../assets/playground.png";
+import pond from "../assets/pond.png";
+import square from "../assets/square2.png";
+import store from "../assets/store.png";
+import theater from "../assets/theater.png";
+import toilet from "../assets/toilet.png";
+import trail from "../assets/trail.png";
+import zoo from "../assets/zoo2.png";
 
 export default function GreenListMap() {
   const [parks, setParks] = useState([]);
@@ -51,10 +66,7 @@ export default function GreenListMap() {
 
 useEffect(() => {
   async function init() {
-    // ✅ 위치 탐색 통합 함수
     async function getUserLocation() {
-      console.log("⏱️ 위치 요청 시작");
-
       const gpsOptions = {
         enableHighAccuracy: true,
         timeout: 15000,
@@ -65,12 +77,10 @@ useEffect(() => {
         new Promise((resolve, reject) => {
           navigator.geolocation.getCurrentPosition(
             (pos) => {
-              console.log("✅ GPS 위치 획득", pos.coords);
               resolve({ method: "GPS", coords: pos.coords });
             },
-            (err) => {
-              console.warn("⚠️ GPS 위치 실패", err.code, err.message);
-              reject(err);
+            () => {
+              reject();
             },
             gpsOptions
           );
@@ -80,14 +90,12 @@ useEffect(() => {
         try {
           const res = await fetch("https://ipapi.co/json/");
           const data = await res.json();
-          console.log("🌍 IP 기반 위치 획득", data);
           return {
             method: "IP",
             coords: { latitude: data.latitude, longitude: data.longitude },
           };
-        } catch (err) {
-          console.error("❌ IP 위치 획득 실패", err);
-          throw err;
+        } catch {
+          return null;
         }
       };
 
@@ -95,18 +103,11 @@ useEffect(() => {
         const gps = await getGPS();
         return gps;
       } catch {
-        console.log("🔁 GPS 실패 → IP fallback 시도");
-        try {
           const ip = await getIP();
-          return ip;
-        } catch (err) {
-          console.error("💥 위치 획득 완전 실패", err);
-          return null;
+          return ip || null;
         }
       }
-    }
 
-    // ✅ 실행
     const loc = await getUserLocation();
     if (loc) {
       const coords = {
@@ -120,7 +121,6 @@ useEffect(() => {
       setMyPosition(null);
     }
 
-    // ✅ 공원 목록 불러오기
     axios
       .get(`${process.env.REACT_APP_API_URL}/parks`)
       .then((res) => {
@@ -133,27 +133,32 @@ useEffect(() => {
         );
         setDistricts(uniqueDistricts);
       })
-      .catch((err) => console.error("parks API error:", err));
+      .catch(() => {});
 
-    // ✅ 공원 감정 데이터
     axios
       .get(`${process.env.REACT_APP_API_URL}/park_emotion`)
       .then((res) => setParkEmotions(res.data))
-      .catch((err) => console.error("emotions API error:", err));
+      .catch(() => {});
   }
 
   init();
 }, []);
 
+const handleSelect = (park) => {
+  setCenter({ lat: park.lat, lng: park.lon });
+  setSelectedPark(park);
 
-  const handleSelect = (park) => {
-    setCenter({ lat: park.lat, lng: park.lon });
-    setSelectedPark(park);
-
-    axios.get(`${process.env.REACT_APP_API_URL}/park_weather`, {params: {lat: park.lat, lon: park.lon}})
-      .then((res) => setWeather(res.data))
-      .catch((err) => console.error("weather API error:", err));
-  };
+  axios
+    .get(`${process.env.REACT_APP_API_URL}/parks/${park.id}`)
+    .then((res) => {
+      setWeather({
+        weather: res.data.weather,
+        air: res.data.air,
+        facilities: res.data.facilities || [],
+      });
+    })
+    .catch(() => {});
+};
 
   useEffect(() => {
     const handleReset = () => {
@@ -360,6 +365,75 @@ useEffect(() => {
               {selectedPark.des && selectedPark.des.trim() !== "" && (
                 <p style={{ margin: "0 0 12px 0", color: "#444" }}>{selectedPark.des}</p>
               )}
+              {weather?.facilities && weather.facilities.length > 0 && (
+                <div style={{ marginTop: "24px" }}>
+                  <h4 style={{ fontSize: "16px", marginBottom: "8px" }}>공원 시설물</h4>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: "10px",
+                    }}
+                  >
+                    {weather.facilities.map((item, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: "70px",
+                          height: "70px",
+                          border: "1px solid #ddd",
+                          borderRadius: "12px",
+                          background: "#f9f9f9",
+                        }}
+                      >
+                        <div style={{ fontSize: "24px" }}>
+                          {(() => {
+                            switch (item) {
+                              case "광장":
+                                return <img src={square} alt="광장" style={{ width: "1.7em", verticalAlign: "middle" }} />;
+                              case "산책로":
+                                return <img src={trail} alt="산책로" style={{ width: "1.3em", verticalAlign: "middle" }} />;
+                              case "연못":
+                                return <img src={pond} alt="연못" style={{ width: "1.5em", verticalAlign: "middle" }} />;
+                              case "분수":
+                                return <img src={fountain} alt="분수" style={{ width: "1.5em", verticalAlign: "middle" }} />;
+                              case "야영장":
+                                return <img src={campsite} alt="야영장" style={{ width: "1.5em", verticalAlign: "middle" }} />;
+                              case "운동장":
+                                return <img src={court} alt="운동장" style={{ width: "1.4em", verticalAlign: "middle" }} />;
+                              case "놀이터":
+                                return <img src={playground} alt="놀이터" style={{ width: "1.5em", verticalAlign: "middle" }} />;
+                              case "운동기구":
+                                return <img src={gym} alt="운동기구" style={{ width: "1.4em", verticalAlign: "middle" }} />;
+                              case "정자":
+                                return <img src={gazebo} alt="정자" style={{ width: "1.5em", verticalAlign: "middle" }} />;
+                              case "문화시설":
+                                return <img src={theater} alt="문화시설" style={{ width: "1.4em", verticalAlign: "middle" }} />;
+                              case "식물원":
+                                return <img src={garden} alt="식물원" style={{ width: "1.4em", verticalAlign: "middle" }} />;
+                              case "주차장":
+                                return <img src={parking} alt="주차장" style={{ width: "2.4em", verticalAlign: "middle" }} />;
+                              case "화장실":
+                                return <img src={toilet} alt="화장실" style={{ width: "1.3em", verticalAlign: "middle" }} />;
+                              case "편의시설":
+                                return <img src={store} alt="편의시설" style={{ width: "1.4em", verticalAlign: "middle" }} />;
+                              case "동물원":
+                                return <img src={zoo} alt="동물원" style={{ width: "1.5em", verticalAlign: "middle" }} />;
+                              default:
+                                return "🏞️";
+                            }
+                          })()}
+                        </div>
+                        <div style={{ fontSize: "12px", marginTop: "4px" }}>{item}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <button
                 onClick={() => {
                   setSelectedPark(null);
@@ -471,15 +545,6 @@ useEffect(() => {
                 position={myPosition}
                 image={{ src: "/images/my_location.svg", size: { width: 30, height: 30 } }}
                 zIndex={100}
-              />
-              <Circle
-                center={{ lat: myPosition.lat, lng: myPosition.lng }}
-                radius={5000}
-                strokeWeight={1}
-                strokeColor={"#4285F4"}
-                strokeOpacity={0.5}
-                fillColor={"#4285F4"}
-                fillOpacity={0.1}
               />
             </>
           )}
