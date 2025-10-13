@@ -204,14 +204,14 @@ def get_park_detail(park_id: int):
             if facilities_row:
                 facility_map = {
                     "Square": "광장",
-                    "Trail": "산책로/등산로",
+                    "Trail": "산책로",
                     "Pond": "연못",
                     "Fountain": "분수",
-                    "Campground": "야영장/야유회장",
+                    "Campground": "야영장",
                     "Pavilion": "정자",
                     "Playground": "놀이터",
                     "Sports_ground": "운동장",
-                    "Fitness_facility": "체력단련시설",
+                    "Fitness_facility": "운동기구",
                     "Cultural_facility": "문화시설",
                     "Zoo": "동물원",
                     "Botanical_garden": "식물원",
