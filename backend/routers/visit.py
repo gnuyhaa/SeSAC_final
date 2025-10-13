@@ -111,7 +111,7 @@ def get_user_visits(nickname: str):
                 JOIN tb_parks p 
                     ON JSON_CONTAINS(JSON_ARRAY(r.park_1,r.park_2,r.park_3,r.park_4,r.park_5,r.park_6), JSON_QUOTE(p.Park))
                 LEFT JOIN tb_users_parks_status s
-                    ON s.park_id = p.ID AND s.nickname = r.nickname
+                    ON s.park_id = p.ID AND s.nickname = r.nickname AND s.create_date = r.create_date 
                 WHERE r.nickname = :nickname
                 ORDER BY r.create_date DESC, p.Park ASC
             """), {"nickname": nickname}).mappings().all()
