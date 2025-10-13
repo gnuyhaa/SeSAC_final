@@ -55,13 +55,13 @@ export default function EmotionCheck({ user }) {
     };
 
     try {
-      await axios.post("https://growth-doctor.onrender.com/emotions", data);
+      await axios.post(`${process.env.REACT_APP_API_URL}/emotions`, data);
       if ("geolocation" in navigator) {
         navigator.geolocation.getCurrentPosition(
           async (pos) => {
             try {
               await axios.put(
-                `https://growth-doctor.onrender.com/emotions/${user.nickname}/location`,
+                `${process.env.REACT_APP_API_URL}/emotions/${user.nickname}/location`,
                 {
                   latitude: pos.coords.latitude,
                   longitude: pos.coords.longitude,
