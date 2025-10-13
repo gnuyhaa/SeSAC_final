@@ -407,13 +407,31 @@ const handleSelect = (park) => {
                   gap: "8px",
                 }}
               >
-                {parks.map((park) => {
+                {parks.map((park, idx) => {
                   const emotion = parkEmotions.find(
                     (e) =>
                       e.name === park.name &&
                       Math.abs(e.lat - park.lat) < 0.0001 &&
                       Math.abs(e.lon - park.lon) < 0.0001
                   );
+                  
+                  // 거리 계산 - 하버사인 공식
+                  const getDistance = (lat1, lon1, lat2, lon2) => {
+                    const R = 6371; // km
+                    const dLat = (lat2 - lat1) * Math.PI / 180;
+                    const dLon = (lon2 - lon1) * Math.PI / 180;
+                    const a =
+                      Math.sin(dLat / 2) ** 2 +
+                      Math.cos(lat1 * Math.PI / 180) *
+                      Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon / 2) ** 2;
+                    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                  };
+
+                  const distance =
+                    myPosition && park.lat && park.lon
+                      ? getDistance(myPosition.lat, myPosition.lng, park.lat, park.lon).toFixed(1)
+                      : null;
 
                   return (
                     <li
@@ -429,6 +447,27 @@ const handleSelect = (park) => {
                         marginLeft: "-10px",
                       }}
                     >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginBottom: "4px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: "0.9em",
+                            fontWeight: "600",
+                            color: "#2ecc71",
+                          }}
+                        >
+                          Top {idx + 1}
+                        </span>
+                        <span style={{ fontSize: "0.9em", color: "#2ecc71" }}>
+                          {distance ? `${distance} km` : ""}
+                        </span>
+                      </div>
                       <div
                         style={{
                           display: "flex",
