@@ -100,20 +100,30 @@ def get_user_visits(nickname: str):
     try:
         with engine.connect() as conn:
             result = conn.execute(text("""
-                SELECT p.ID AS park_id,
-                    p.Park AS park_name,
-                    p.Address AS address,
-                    COALESCE(s.visit_count, 0) AS visit_count,
-                    COALESCE(s.is_visited, 0) AS is_visited,
-                    COALESCE(s.visit_date, NULL) AS visit_date,
-                    r.create_date AS recommend_date
-                FROM tb_users_parks_recommend r
-                JOIN tb_parks p 
-                    ON JSON_CONTAINS(JSON_ARRAY(r.park_1,r.park_2,r.park_3,r.park_4,r.park_5,r.park_6), JSON_QUOTE(p.Park))
-                LEFT JOIN tb_users_parks_status s
-                    ON s.park_id = p.ID AND s.nickname = r.nickname AND s.create_date = r.create_date 
-                WHERE r.nickname = :nickname
-                ORDER BY r.create_date DESC, p.Park ASC
+                        SELECT 
+                            p.ID AS park_id,
+                            p.Park AS park_name,
+                            p.Address AS address,
+                            COALESCE(v.visit_count, 0) AS visit_count,
+                            CASE WHEN v.visit_count > 0 THEN 1 ELSE 0 END AS is_visited,
+                            r.create_date AS recommend_date
+                        FROM tb_users_parks_recommend r
+                        JOIN tb_parks p
+                            ON JSON_CONTAINS(
+                                JSON_ARRAY(r.park_1,r.park_2,r.park_3,r.park_4,r.park_5,r.park_6),
+                                JSON_QUOTE(p.Park)
+                            )
+                        LEFT JOIN (
+                            SELECT 
+                                park_id,
+                                create_date,
+                                COUNT(*) AS visit_count
+                            FROM tb_parks_visit_log
+                            WHERE nickname = :nickname
+                            GROUP BY park_id, create_date
+                        ) v ON v.park_id = p.ID AND v.create_date = r.create_date
+                        WHERE r.nickname = :nickname
+                        ORDER BY r.create_date DESC, p.Park ASC
             """), {"nickname": nickname}).mappings().all()
         print(f"[{datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S')}] GET_USER_VISITS: nickname={nickname}, parks_count={len(result)}")
 
