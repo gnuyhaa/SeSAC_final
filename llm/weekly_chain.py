@@ -72,7 +72,6 @@ def weekly_review(nickname:str):
             week_list = cur.fetchall()
 
         if len(week_list) < 3:
-            conn.close()
             return '요약할 데이터가 충분하지 않습니다.'
 
         # 3️⃣ LLM용 입력 텍스트 생성
