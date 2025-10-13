@@ -1,6 +1,21 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Map, CustomOverlayMap, ZoomControl, MapMarker, Circle } from "react-kakao-maps-sdk";
+import campsite from "../assets/campsite.png"
+import court from "../assets/court.png";
+import fountain from "../assets/fountain.png";
+import garden from "../assets/garden.png";
+import gazebo from "../assets/gazebo.png";
+import gym from "../assets/gym.png";
+import parking from "../assets/parking.png";
+import playground from "../assets/playground.png";
+import pond from "../assets/pond.png";
+import square from "../assets/square2.png";
+import store from "../assets/store.png";
+import theater from "../assets/theater.png";
+import toilet from "../assets/toilet.png";
+import trail from "../assets/trail.png";
+import zoo from "../assets/zoo2.png";
 
 export default function KakaoMap() {
   const [parks, setParks] = useState([]);
@@ -31,23 +46,52 @@ export default function KakaoMap() {
   };
 
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const coords = {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            accuracy: pos.coords.accuracy,
-          };
-          setCenter(coords);
-          setMyPosition(coords);
-        },
-        (err) => {
-          console.error("위치 권한 거부 또는 에러:", err);
+    async function initPosition() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const coords = {
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              accuracy: pos.coords.accuracy,
+            };
+            setCenter(coords);
+            setMyPosition(coords);
+          },
+          async () => {
+            try {
+              const res = await axios.get(
+                `${process.env.REACT_APP_API_URL}/emotions/${nickname}/latest`
+              );
+              const { latitude, longitude } = res.data;
+              if (latitude && longitude) {
+                const coords = { lat: latitude, lng: longitude };
+                setCenter(coords);
+                setMyPosition(coords);
+              }
+            } catch {
+            }
+          },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      } else {
+        try {
+          const res = await axios.get(
+            `${process.env.REACT_APP_API_URL}/emotions/${nickname}/latest`
+          );
+          const { latitude, longitude } = res.data;
+          if (latitude && longitude) {
+            const coords = { lat: latitude, lng: longitude };
+            setCenter(coords);
+            setMyPosition(coords);
+          }
+        } catch {
         }
-      );
+      }
     }
-  }, []);
+    initPosition();
+  }, [nickname]);
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -65,10 +109,19 @@ export default function KakaoMap() {
         const allParks = allRes.data;
         setParkEmotions(emotionRes.data);
 
-        const parksData = recRes.data?.recommended_parks || [];
-        const latestNames = Array.isArray(parksData[0])
-          ? parksData.at(0).slice(1)
-          : [];
+        let parksData = recRes.data?.recommended_parks;
+        let latestNames = [];
+
+        if (parksData?.recommended_parks && Array.isArray(parksData.recommended_parks)) {
+          latestNames = parksData.recommended_parks.map(p => p.Name);
+        }
+        else if (Array.isArray(parksData) && Array.isArray(parksData[0])) {
+          latestNames = parksData[0].slice(1);
+        }
+        else if (Array.isArray(parksData)) {
+          latestNames = parksData.map(p => p.Name || p);
+        }
+
         const validNames = latestNames.filter(Boolean);
 
         const filtered =
@@ -98,24 +151,27 @@ export default function KakaoMap() {
             : allParks;
 
         setParks(filtered);
-      } catch (err) {
-        console.error("parks/latest_recommendation API error:", err);
+      } catch {
       }
     };
 
     if (myPosition) fetchData();
   }, [myPosition, nickname]);
 
+const handleSelect = (park) => {
+  setCenter({ lat: park.lat, lng: park.lon });
+  setSelectedPark(park);
 
-  const handleSelect = (park) => {
-    setCenter((prev) => prev || { lat: park.lat, lng: park.lon });
-    setSelectedPark(park);
-
-    axios
-      .get(`${process.env.REACT_APP_API_URL}/park_weather/${encodeURIComponent(park.name)}?lat=${park.lat}&lon=${park.lon}`)
-      .then((res) => setWeather(res.data))
-      .catch((err) => console.error("weather API error:", err));
-  };
+  axios
+    .get(`${process.env.REACT_APP_API_URL}/parks/${park.id}`)
+    .then((res) => {
+      setWeather({
+        ...res.data,
+      });
+    })
+    .catch(() => {
+    });
+};
 
   return (
     <div className="map-page" style={{ display: "flex" }}>
@@ -246,6 +302,77 @@ export default function KakaoMap() {
                 </p>
               )}
 
+              {/* 공원 시설물 */}
+              {weather?.facilities && weather.facilities.length > 0 && (
+                <div style={{ marginTop: "24px" }}>
+                  <h4 style={{ fontSize: "16px", marginBottom: "8px" }}>공원 시설물</h4>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: "10px",
+                    }}
+                  >
+                    {weather.facilities.map((item, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: "70px",
+                          height: "70px",
+                          border: "1px solid #ddd",
+                          borderRadius: "12px",
+                          background: "#f9f9f9",
+                        }}
+                      >
+                        <div style={{ fontSize: "24px" }}>
+                          {(() => {
+                            switch (item) {
+                              case "광장":
+                                return <img src={square} alt="광장" style={{ width: "1.7em", verticalAlign: "middle" }} />;
+                              case "산책로":
+                                return <img src={trail} alt="산책로" style={{ width: "1.3em", verticalAlign: "middle" }} />;
+                              case "연못":
+                                return <img src={pond} alt="연못" style={{ width: "1.5em", verticalAlign: "middle" }} />;
+                              case "분수":
+                                return <img src={fountain} alt="분수" style={{ width: "1.5em", verticalAlign: "middle" }} />;
+                              case "야영장":
+                                return <img src={campsite} alt="야영장" style={{ width: "1.5em", verticalAlign: "middle" }} />;
+                              case "운동장":
+                                return <img src={court} alt="운동장" style={{ width: "1.4em", verticalAlign: "middle" }} />;
+                              case "놀이터":
+                                return <img src={playground} alt="놀이터" style={{ width: "1.5em", verticalAlign: "middle" }} />;
+                              case "운동기구":
+                                return <img src={gym} alt="운동기구" style={{ width: "1.4em", verticalAlign: "middle" }} />;
+                              case "정자":
+                                return <img src={gazebo} alt="정자" style={{ width: "1.5em", verticalAlign: "middle" }} />;
+                              case "문화시설":
+                                return <img src={theater} alt="문화시설" style={{ width: "1.4em", verticalAlign: "middle" }} />;
+                              case "식물원":
+                                return <img src={garden} alt="식물원" style={{ width: "1.4em", verticalAlign: "middle" }} />;
+                              case "주차장":
+                                return <img src={parking} alt="주차장" style={{ width: "2.4em", verticalAlign: "middle" }} />;
+                              case "화장실":
+                                return <img src={toilet} alt="화장실" style={{ width: "1.3em", verticalAlign: "middle" }} />;
+                              case "편의시설":
+                                return <img src={store} alt="편의시설" style={{ width: "1.4em", verticalAlign: "middle" }} />;
+                              case "동물원":
+                                return <img src={zoo} alt="동물원" style={{ width: "1.5em", verticalAlign: "middle" }} />;
+                              default:
+                                return "🏞️";
+                            }
+                          })()}
+                        </div>
+                        <div style={{ fontSize: "12px", marginTop: "4px" }}>{item}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <button
                 onClick={() => {
                   setSelectedPark(null);
@@ -281,11 +408,16 @@ export default function KakaoMap() {
                 }}
               >
                 {parks.map((park) => {
-                  const emotion = parkEmotions.find((e) => e.name === park.name);
+                  const emotion = parkEmotions.find(
+                    (e) =>
+                      e.name === park.name &&
+                      Math.abs(e.lat - park.lat) < 0.0001 &&
+                      Math.abs(e.lon - park.lon) < 0.0001
+                  );
 
                   return (
                     <li
-                      key={park.name}
+                      key={`${park.id || park.name}-${park.lat}-${park.lon}`}
                       onClick={() => handleSelect(park)}
                       style={{
                         cursor: "pointer",
@@ -318,12 +450,11 @@ export default function KakaoMap() {
                           style={{
                             display: "flex",
                             flexWrap: "wrap",
-                            gap: "3px",
+                            gap: "2px",
                             marginTop: "6px",
                           }}
                         >
-                          {[emotion.keyword1, emotion.keyword2, emotion.keyword3].map(
-                            (keyword, i) => (
+                            {[emotion.keyword1, emotion.keyword2, emotion.keyword3].filter(Boolean).map((keyword, i) => (
                               <span
                                 key={i}
                                 style={{
