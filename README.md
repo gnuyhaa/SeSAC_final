@@ -11,7 +11,7 @@
 > git commit -m '<타입>:<짧은설명>'
 
 ## 백엔드 구조 설명
-
+```
   ├─ backend/  
   │   ├─ routers/  
   │   │   ├─ auth.py # 로그인 API  
@@ -26,14 +26,17 @@
   │   ├─ .env  
   │   ├─ db.py  
   │   └─ main.py  
+```
 
 ## 알고리즘, llm 코드 구조 설명
+```
   ├─ algorithm/ # 알고리즘 코드  
   │   ├─ category_algorithm.py # 녹지 유형 추천 알고리즘  
   │   ├─ parks_algorithm.py # 공원 추천 알고리즘  
   ├─ llm/ # llm 코드  
   │   ├─ summary_chain.py # LLM 요약 관련 코드  
   │   ├─ weekly_chain.py # 주간 총평 LLM 관련 코드  
+```
 
 ## 프론트엔드 구조 설명
 ```
@@ -65,7 +68,7 @@
 │  │  │  ├─ GreenList.js           # 전체 공원 목록 및 상세 정보(날씨, 시설물) 지도 페이지
 │  │  │  ├─ Map.js                 # 추천 공원 지도 페이지
 │  │  │  ├─ Main.js                # 웹 메인 페이지
-│  │  │  ├─ MyPage.js / MyPage.css # 날짜별 추천 공원 확인, 방문 공원 지도 표시, 감정 리포트 등 개인 맞춤형 마이 페이지
+│  │  │  ├─ MyPage.js / MyPage.css # 날짜별 추천 리스트 확인, 지도 표현, 감정 리포트 구현
 │  │  │  └─ WaitingPage.js         # 처방전 스타일의 추천 결과 대기 화면
 │  │  │
 │  │  ├─ App.js / App.css          # 페이지 라우팅 및 전역 구조 설정
