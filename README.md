@@ -36,6 +36,7 @@
   │   ├─ weekly_chain.py # 주간 총평 LLM 관련 코드  
 
 ## 프론트엔드 구조 설명
+```
 ├─ frontend/
 │  ├─ public/
 │  │  ├─ images/
@@ -73,3 +74,4 @@
 │  │
 │  ├─ package.json                 # 프로젝트 의존성 및 스크립트 정의
 │  └─ package-lock.json            # 의존성 잠금 파일
+```
