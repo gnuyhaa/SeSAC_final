@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+sqlalchemy
+requests
+python-dotenv
+pydantic
+bcrypt
+pyjwt
+pymysql
+pytz
+langchain
+langchain-openai
