@@ -70,7 +70,10 @@ def register(user: UserRegister):
         
         hashed_pw = bcrypt.hashpw(user.password.encode(), bcrypt.gensalt(rounds=12)).decode()  # rounds 적절히 조정
         conn.execute(
-            text("INSERT INTO tb_users (id, nickname, password) VALUES (:id, :nickname, :password)"),
+            text("""
+                INSERT INTO tb_users (id, nickname, password, created_at)
+                VALUES (:id, :nickname, :password, timezone('Asia/Seoul', now()))
+            """),
             {"id": user.id, "nickname": user.nickname, "password": hashed_pw}
         )
         conn.commit()

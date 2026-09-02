@@ -12,7 +12,7 @@ router = APIRouter()
 def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categories: int = 3):
     """
     사용자 최근 감정 기반으로
-    1) 녹지 유형 추천(top_n_categories, Content 포함)
+    1) 녹지 유형 추천(top_n_categories, content 포함)
     2) 공원 추천(top_n_parks)
     결과 반환 및 DB 저장
     로그는 그대로 출력
@@ -50,12 +50,12 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
             # Content 포함해서 DB와 반환용으로 한 번에 가져오기
             categories = [rc["category"] for rc in recommended_categories]
             query_content = text("""
-                SELECT Category, Content
+                SELECT category, content
                 FROM tb_parks_categorys
-                WHERE Category IN :categories
+                WHERE category IN :categories
             """)
             content_rows = conn.execute(query_content, {"categories": tuple(categories)}).fetchall()
-            content_map = {r._mapping["Category"]: r._mapping["Content"] for r in content_rows}
+            content_map = {r._mapping["category"]: r._mapping["content"] for r in content_rows}
 
             cat_with_content = []
             for rc in recommended_categories:
@@ -68,12 +68,19 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
             insert_cat = text("""
                 INSERT INTO tb_users_category_recommend
                 (nickname, create_date, category_1, category_2, category_3)
-                VALUES (:nickname, :create_date, :c1, :c2, :c3)
+                VALUES (
+                    :nickname,
+                    timezone('Asia/Seoul', now()),
+                    :c1,
+                    :c2,
+                    :c3
+                )
             """)
+
             c = [rc["category"] for rc in recommended_categories] + [None]*3
+
             conn.execute(insert_cat, {
                 "nickname": user_nickname,
-                "create_date": row._mapping["create_date"],
                 "c1": c[0],
                 "c2": c[1],
                 "c3": c[2]
@@ -89,12 +96,17 @@ def recommend_for_user(user_nickname: str, top_n_parks: int = 6, top_n_categorie
             insert_parks = text("""
                 INSERT INTO tb_users_parks_recommend
                 (nickname, create_date, park_1, park_2, park_3, park_4, park_5, park_6)
-                VALUES (:nickname, :create_date, :p1, :p2, :p3, :p4, :p5, :p6)
+                VALUES (
+                    :nickname,
+                    timezone('Asia/Seoul', now()),
+                    :p1, :p2, :p3, :p4, :p5, :p6
+                )
             """)
+
             p = [p.get("Park") for p in recommended_parks] + [None]*6
+
             conn.execute(insert_parks, {
                 "nickname": user_nickname,
-                "create_date": row._mapping["create_date"],
                 "p1": p[0],
                 "p2": p[1],
                 "p3": p[2],

@@ -108,16 +108,13 @@ def weekly_review(nickname: str):
         overall_chain = overall_prompt | ChatOpenAI(model="gpt-4o-mini", temperature=0.5) | JsonOutputParser()
         weekly_result = overall_chain.invoke(weekly_text)
 
-        now_kst = datetime.datetime.now(tz).replace(tzinfo=None)
-
         # 5️⃣ 결과 저장 (주간 총평 1회만)
         with engine.begin() as conn:
             conn.execute(text("""
                 INSERT INTO tb_weekly_review (nickname, create_date, review)
-                VALUES (:nickname, :create_date, :review)
+                VALUES (:nickname, timezone('Asia/Seoul', now()), :review)
             """), {
                 "nickname": nickname,
-                "create_date": now_kst,
                 "review": weekly_result['review'],
             })
 

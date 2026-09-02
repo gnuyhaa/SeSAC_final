@@ -54,7 +54,7 @@ def toggle_visit_status(nickname: str, park_id: int, create_date: str):
                 # 없으면 ON (새 방문 추가)
                 conn.execute(text("""
                     INSERT INTO tb_parks_visit_log (nickname, park_id, create_date, visit_date)
-                    VALUES (:nickname, :park_id, :create_date, NOW())
+                    VALUES (:nickname, :park_id, :create_date, timezone('Asia/Seoul', now()))
                 """), {
                     "nickname": nickname,
                     "park_id": park_id,
@@ -73,11 +73,11 @@ def toggle_visit_status(nickname: str, park_id: int, create_date: str):
                 # 상태 테이블 갱신
                 conn.execute(text("""
                     INSERT INTO tb_users_parks_status (nickname, park_id, is_visited, visit_count, visit_date)
-                    VALUES (:nickname, :park_id, 1, :visit_count, NOW())
+                    VALUES (:nickname, :park_id, 1, :visit_count, timezone('Asia/Seoul', now()))
                     ON CONFLICT (nickname, park_id) DO UPDATE SET
                         is_visited = 1,
                         visit_count = EXCLUDED.visit_count,
-                        visit_date = NOW()
+                        visit_date = timezone('Asia/Seoul', now())
                 """), {
                     "nickname": nickname,
                     "park_id": park_id,

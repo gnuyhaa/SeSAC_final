@@ -14,9 +14,9 @@ def save_emotions(data: dict):
         with engine.begin() as conn:
             conn.execute(text("""
                 INSERT INTO tb_users_emotions (
-                    nickname, depression, anxiety, stress, happiness, achievement, energy, latitude, longitude
+                    nickname, create_date, depression, anxiety, stress, happiness, achievement, energy, latitude, longitude
                 ) VALUES (
-                    :nickname, :depression, :anxiety, :stress, :happiness, :achievement, :energy, :latitude, :longitude
+                    :nickname, timezone('Asia/Seoul', now()), :depression, :anxiety, :stress, :happiness, :achievement, :energy, :latitude, :longitude
                 )
             """), {
                 "nickname": data["nickname"],
@@ -31,6 +31,7 @@ def save_emotions(data: dict):
             })
 
         return {"message": "User emotions saved"}
+
 
     except Exception as e:
         print("DB 저장 중 에러 발생:", str(e))

@@ -18,6 +18,6 @@ engine = create_engine(
     echo=False,
     future=True,
     connect_args={
-        "options": "-c search_path=finfin_db,public"
+        "options": "-c search_path=finfin_db,public -c timezone=Asia/Seoul"
     }
 )
