@@ -61,7 +61,7 @@
 | **백엔드** | `FastAPI` (Python), `Uvicorn` (ASGI 서버), `Render`(배포) | API 서버 구현 및 배포 환경 구성 |
 | **Open API** | `Kakao map`- 지도, `Openweather` - 날씨 | 지도 시각화 및 날씨 데이터 활용 |
 | **LLM / AI** | `Langchain`  | 감정 분석 및 맞춤형 추천 프롬프트 체인 구축 |
-| **데이터베이스** | `AWS`, `MariaDB` | 데이터 저장 및 클라우드 인프라 운영 |
+| **데이터베이스** | `Superbase`, `PostgreSQL` | 데이터 저장 및 클라우드 인프라 운영 |
 | **협업 도구** | `Notion`, `Figma`, `Git` | 기획·디자인·버전 관리 협업 |
 
 ---
@@ -110,7 +110,7 @@
 
 `.env` 파일을 통해 환경 변수를 관리합니다. 
 
-- `DB_HOST`: AWS RDS MariaDB 데이터베이스 연결
+- `DATABASE_URL`: Superbase 연결
 - `JWT_SECRET_KEY` : 비밀번호 해싱에 필요한 시크릿 키
 - `OPENWEATHER_API_KEY` : openweather API 키
 - `OPENAI_API_KEY` : Open AI API 키
