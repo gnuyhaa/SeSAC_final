@@ -1,43 +1,34 @@
-import pymysql
 import json
 from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import JsonOutputParser
-import os
-from dotenv import load_dotenv
+from sqlalchemy import text
+from backend.db import engine
 
-load_dotenv()
 
 def summary(nickname: str):
-    
-    # DB연결
-    conn = pymysql.connect(
-        host=os.getenv("DB_HOST"),
-        port=int(os.getenv("DB_PORT")),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        db=os.getenv("DB_NAME"),
-        charset=os.getenv("DB_CHARSET", "utf8mb4")
-    )
-
     # 서비스 이용하면 이용 기록 바로 가져오기
-    cur = conn.cursor(pymysql.cursors.DictCursor)
-    # 날짜로 내림차순을 해서 첫번째만 가져오기 = 제일 최신 사용 정보 가져오기
-    cur.execute("""
-        SELECT e.nickname, e.create_date, depression, anxiety, stress, happiness, achievement, 
-            energy, category_1, category_2, category_3,
-            p.park_1 AS park_1,
-            p.park_2 AS park_2,
-            p.park_3 AS park_3
-        FROM tb_users_emotions e
-        LEFT JOIN tb_users_category_recommend u ON u.create_date = e.create_date AND u.nickname = e.nickname
-        LEFT JOIN tb_users_parks_recommend p ON p.create_date = e.create_date AND p.nickname = e.nickname
-        WHERE e.nickname = %s
-        ORDER BY e.create_date DESC
-        LIMIT 1;
-    """, (nickname, )) 
-    use = cur.fetchone()
-    
+    with engine.connect() as conn:
+        # 날짜로 내림차순을 해서 첫번째만 가져오기 = 제일 최신 사용 정보 가져오기
+        use = conn.execute(text("""
+            SELECT e.nickname, e.create_date, depression, anxiety, stress, happiness, achievement,
+                energy, category_1, category_2, category_3,
+                p.park_1 AS park_1,
+                p.park_2 AS park_2,
+                p.park_3 AS park_3
+            FROM tb_users_emotions e
+            LEFT JOIN tb_users_category_recommend u
+                ON u.create_date = e.create_date AND u.nickname = e.nickname
+            LEFT JOIN tb_users_parks_recommend p
+                ON p.create_date = e.create_date AND p.nickname = e.nickname
+            WHERE e.nickname = :nickname
+            ORDER BY e.create_date DESC
+            LIMIT 1
+        """), {"nickname": nickname}).mappings().first()
+
+    if not use:
+        raise ValueError(f"{nickname} 사용자의 요약 대상 데이터가 없습니다.")
+
     # 한 번 사용당 요약
     summary_prompt = PromptTemplate.from_template("""
     Input Data:
@@ -65,29 +56,24 @@ def summary(nickname: str):
     """)
 
     summary_chain = summary_prompt | ChatOpenAI(model="gpt-4o-mini") | JsonOutputParser()
-
-    summary = summary_chain.invoke(use)
-    print(summary)
+    summary_result = summary_chain.invoke(dict(use))
 
     recommand_parks = [use['park_1'], use['park_2'], use['park_3']]
     recommand_cates = [use['category_1'], use['category_2'], use['category_3']]
 
-    with conn.cursor() as cur:
-        sql = """
-        INSERT INTO tb_users_summary
-        (nickname, Create_date, TopEmotions, EmotionsSummary, RecommandCates, RecommandParks)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        """
-        cur.execute(sql, (
-            nickname,
-            use['create_date'],
-            json.dumps(summary['top_emotions'], ensure_ascii=False),
-            summary['emotions_summary'],
-            json.dumps(recommand_cates, ensure_ascii=False),
-            json.dumps(recommand_parks, ensure_ascii=False)
-        ))
+    with engine.begin() as conn:
+        conn.execute(text("""
+            INSERT INTO tb_users_summary
+            (nickname, Create_date, TopEmotions, EmotionsSummary, RecommandCates, RecommandParks)
+            VALUES (:nickname, :create_date, :top_emotions, :emotions_summary, :recommand_cates, :recommand_parks)
+        """), {
+            "nickname": nickname,
+            "create_date": use['create_date'],
+            "top_emotions": json.dumps(summary_result['top_emotions'], ensure_ascii=False),
+            "emotions_summary": summary_result['emotions_summary'],
+            "recommand_cates": json.dumps(recommand_cates, ensure_ascii=False),
+            "recommand_parks": json.dumps(recommand_parks, ensure_ascii=False),
+        })
 
-    conn.commit()
-    conn.close()
     print('요약 끝!')
-    return summary
+    return summary_result

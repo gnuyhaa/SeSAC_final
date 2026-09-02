@@ -7,16 +7,14 @@ from pathlib import Path
 env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = int(os.getenv("DB_PORT", 3306))  # 문자열 → int
-DB_NAME = os.getenv("DB_NAME")
-DB_CHARSET = os.getenv("DB_CHARSET", "utf8mb4")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-# SQLAlchemy 엔진 생성
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL 환경변수가 설정되지 않았습니다.")
+
 engine = create_engine(
-    f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset={DB_CHARSET}",
+    DATABASE_URL,
+    pool_pre_ping=True,
     echo=False,
     future=True
 )

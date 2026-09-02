@@ -1,54 +1,43 @@
 from typing import Dict, Any, List
-import pymysql
-from dotenv import load_dotenv
-import os 
 
-load_dotenv()
-
-def get_db_connection():
-    """DB 연결 생성"""
-    return pymysql.connect(
-        host=os.getenv("DB_HOST"),
-        port=int(os.getenv("DB_PORT")),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        db=os.getenv("DB_NAME"),
-        charset=os.getenv("DB_CHARSET", "utf8mb4"),
-        cursorclass=pymysql.cursors.DictCursor
-    )
-
+from sqlalchemy import text
+from backend.db import engine
 
 
 def parks_and_scores_in_5km(latitude, longitude):
-    conn = get_db_connection()
+    """사용자 현재 위치 기준 반경 5km 이내 공원을 조회합니다."""
+    query = text("""
+        SELECT *
+        FROM (
+            SELECT
+                s.ParkID AS "ParkID",
+                p.Park AS "Park",
+                s.Nature AS "Nature",
+                s.Convenience AS "Convenience",
+                s.Safety AS "Safety",
+                s.Activity AS "Activity",
+                s.Social AS "Social",
+                s.Coverage AS "Coverage",
+                p.Latitude AS "Latitude",
+                p.Longitude AS "Longitude",
+                (6371 * ACOS(
+                    COS(RADIANS(:latitude)) * COS(RADIANS(p.Latitude)) *
+                    COS(RADIANS(p.Longitude) - RADIANS(:longitude)) +
+                    SIN(RADIANS(:latitude)) * SIN(RADIANS(p.Latitude))
+                )) AS distance
+            FROM tb_parks_score s
+            JOIN tb_parks p ON s.ParkID = p.ID
+        ) AS parks_with_distance
+        WHERE distance <= 5
+        ORDER BY distance
+    """)
 
-    # 사용자 현재 위치부터 반경 5km이내 공원 가져오는 SELECT문 (python코드로 걸러내는 것 보다 이게 빠름)
-    cur = conn.cursor()
-    query = """
-        SELECT 
-            s.ParkID,
-            p.Park,
-            s.Nature, s.Convenience, s.Safety, s.Activity, s.Social, s.Coverage,
-            p.Latitude, p.Longitude,
-            (6371 * ACOS(
-                COS(RADIANS(%s)) * COS(RADIANS(p.latitude)) *
-                COS(RADIANS(p.longitude) - RADIANS(%s)) +
-                SIN(RADIANS(%s)) * SIN(RADIANS(p.latitude))
-            )) AS distance
-        FROM tb_parks_score s
-        JOIN tb_parks p ON s.ParkID = p.ID
-        HAVING distance <= 5
-        ORDER BY distance;
-        """
-
-    # 사용자한테 받은 위도, 경도
-    cur.execute(query, (latitude, longitude, latitude))
-    parks_list = cur.fetchall()
-
-    cur.close()
-    conn.close()
-
-    return parks_list
+    with engine.connect() as conn:
+        result = conn.execute(query, {
+            "latitude": latitude,
+            "longitude": longitude,
+        })
+        return result.mappings().all()
 
 
 # 감정 가중치(연구 기반)

@@ -74,9 +74,9 @@ def toggle_visit_status(nickname: str, park_id: int, create_date: str):
                 conn.execute(text("""
                     INSERT INTO tb_users_parks_status (nickname, park_id, is_visited, visit_count, visit_date)
                     VALUES (:nickname, :park_id, 1, :visit_count, NOW())
-                    ON DUPLICATE KEY UPDATE
+                    ON CONFLICT (nickname, park_id) DO UPDATE SET
                         is_visited = 1,
-                        visit_count = :visit_count,
+                        visit_count = EXCLUDED.visit_count,
                         visit_date = NOW()
                 """), {
                     "nickname": nickname,
@@ -109,10 +109,7 @@ def get_user_visits(nickname: str):
                             r.create_date AS recommend_date
                         FROM tb_users_parks_recommend r
                         JOIN tb_parks p
-                            ON JSON_CONTAINS(
-                                JSON_ARRAY(r.park_1,r.park_2,r.park_3,r.park_4,r.park_5,r.park_6),
-                                JSON_QUOTE(p.Park)
-                            )
+                            ON p.Park IN (r.park_1, r.park_2, r.park_3, r.park_4, r.park_5, r.park_6)
                         LEFT JOIN (
                             SELECT 
                                 park_id,
@@ -148,16 +145,24 @@ def get_district_heatmap(nickname: str):
         now_kst = datetime.now(KST)
         with engine.connect() as conn:
             result = conn.execute(text("""
-                SELECT 
-                    p.Address,
-                    SUBSTRING_INDEX(SUBSTRING_INDEX(p.Address, ' ', 2), ' ', -1) AS district_name,
+                WITH park_districts AS (
+                    SELECT
+                        ID,
+                        Address,
+                        split_part(Address, ' ', 2) AS district_name
+                    FROM tb_parks
+                )
+                SELECT
+                    pd.district_name,
                     SUM(s.visit_count) AS total_visits,
                     COUNT(DISTINCT s.park_id) AS visited_parks,
-                    (SELECT COUNT(*) FROM tb_parks WHERE SUBSTRING_INDEX(SUBSTRING_INDEX(Address, ' ', 2), ' ', -1) = district_name) AS total_parks
+                    (SELECT COUNT(*)
+                     FROM park_districts all_parks
+                     WHERE all_parks.district_name = pd.district_name) AS total_parks
                 FROM tb_users_parks_status s
-                JOIN tb_parks p ON s.park_id = p.ID
+                JOIN park_districts pd ON s.park_id = pd.ID
                 WHERE s.nickname = :nickname AND s.is_visited = 1
-                GROUP BY district_name
+                GROUP BY pd.district_name
             """), {"nickname": nickname}).mappings().all()
             
             # weighted_ratio 추가 계산
