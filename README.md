@@ -120,7 +120,9 @@
 ---
 
 ## **서비스 아키텍처**
-<img width="2276" height="1703" alt="image" src="https://github.com/user-attachments/assets/d4ead858-8dd0-4ee9-b8f5-e8318983d036" />
+<img width="2276" height="1703" alt="image" src="https://github.com/user-attachments/assets/6ec3fb79-f76d-4463-b3f3-999e28c2ff58" />
 
 ---
 ## **시연 영상**
+
+
