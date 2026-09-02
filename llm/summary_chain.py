@@ -64,7 +64,7 @@ def summary(nickname: str):
     with engine.begin() as conn:
         conn.execute(text("""
             INSERT INTO tb_users_summary
-            (nickname, Create_date, TopEmotions, EmotionsSummary, RecommandCates, RecommandParks)
+            (nickname, "Create_date", "TopEmotions", "EmotionsSummary", "RecommandCates", "RecommandParks")
             VALUES (:nickname, :create_date, :top_emotions, :emotions_summary, :recommand_cates, :recommand_parks)
         """), {
             "nickname": nickname,

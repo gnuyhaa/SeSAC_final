@@ -101,15 +101,15 @@ def get_user_visits(nickname: str):
         with engine.connect() as conn:
             result = conn.execute(text("""
                         SELECT 
-                            p.ID AS park_id,
-                            p.Park AS park_name,
-                            p.Address AS address,
+                            p."ID" AS park_id,
+                            p."Park" AS park_name,
+                            p."Address" AS address,
                             COALESCE(v.visit_count, 0) AS visit_count,
                             CASE WHEN v.visit_count > 0 THEN 1 ELSE 0 END AS is_visited,
                             r.create_date AS recommend_date
                         FROM tb_users_parks_recommend r
                         JOIN tb_parks p
-                            ON p.Park IN (r.park_1, r.park_2, r.park_3, r.park_4, r.park_5, r.park_6)
+                            ON p."Park" IN (r.park_1, r.park_2, r.park_3, r.park_4, r.park_5, r.park_6)
                         LEFT JOIN (
                             SELECT 
                                 park_id,
@@ -118,9 +118,9 @@ def get_user_visits(nickname: str):
                             FROM tb_parks_visit_log
                             WHERE nickname = :nickname
                             GROUP BY park_id, create_date
-                        ) v ON v.park_id = p.ID AND v.create_date = r.create_date
+                        ) v ON v.park_id = p."ID" AND v.create_date = r.create_date
                         WHERE r.nickname = :nickname
-                        ORDER BY r.create_date DESC, p.Park ASC
+                        ORDER BY r.create_date DESC, p."Park" ASC
             """), {"nickname": nickname}).mappings().all()
         print(f"[{datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S')}] GET_USER_VISITS: nickname={nickname}, parks_count={len(result)}")
 
@@ -147,9 +147,9 @@ def get_district_heatmap(nickname: str):
             result = conn.execute(text("""
                 WITH park_districts AS (
                     SELECT
-                        ID,
-                        Address,
-                        split_part(Address, ' ', 2) AS district_name
+                        "ID",
+                        "Address",
+                        split_part("Address", ' ', 2) AS district_name
                     FROM tb_parks
                 )
                 SELECT
@@ -160,7 +160,7 @@ def get_district_heatmap(nickname: str):
                      FROM park_districts all_parks
                      WHERE all_parks.district_name = pd.district_name) AS total_parks
                 FROM tb_users_parks_status s
-                JOIN park_districts pd ON s.park_id = pd.ID
+                JOIN park_districts pd ON s.park_id = pd."ID"
                 WHERE s.nickname = :nickname AND s.is_visited = 1
                 GROUP BY pd.district_name
             """), {"nickname": nickname}).mappings().all()

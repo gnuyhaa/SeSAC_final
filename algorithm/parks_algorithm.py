@@ -10,23 +10,23 @@ def parks_and_scores_in_5km(latitude, longitude):
         SELECT *
         FROM (
             SELECT
-                s.ParkID AS "ParkID",
-                p.Park AS "Park",
-                s.Nature AS "Nature",
-                s.Convenience AS "Convenience",
-                s.Safety AS "Safety",
-                s.Activity AS "Activity",
-                s.Social AS "Social",
-                s.Coverage AS "Coverage",
-                p.Latitude AS "Latitude",
-                p.Longitude AS "Longitude",
+                s."ParkID" AS "ParkID",
+                p."Park" AS "Park",
+                s."Nature" AS "Nature",
+                s."Convenience" AS "Convenience",
+                s."Safety" AS "Safety",
+                s."Activity" AS "Activity",
+                s."Social" AS "Social",
+                s."Coverage" AS "Coverage",
+                p."Latitude" AS "Latitude",
+                p."Longitude" AS "Longitude",
                 (6371 * ACOS(
-                    COS(RADIANS(:latitude)) * COS(RADIANS(p.Latitude)) *
-                    COS(RADIANS(p.Longitude) - RADIANS(:longitude)) +
-                    SIN(RADIANS(:latitude)) * SIN(RADIANS(p.Latitude))
+                    COS(RADIANS(:latitude)) * COS(RADIANS(p."Latitude")) *
+                    COS(RADIANS(p."Longitude") - RADIANS(:longitude)) +
+                    SIN(RADIANS(:latitude)) * SIN(RADIANS(p."Latitude"))
                 )) AS distance
             FROM tb_parks_score s
-            JOIN tb_parks p ON s.ParkID = p.ID
+            JOIN tb_parks p ON s."ParkID" = p."ID"
         ) AS parks_with_distance
         WHERE distance <= 5
         ORDER BY distance

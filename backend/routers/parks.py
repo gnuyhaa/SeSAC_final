@@ -101,20 +101,20 @@ def get_parks_emotion():
     with engine.connect() as conn:
         query = text("""
             SELECT 
-                p.ID,
-                p.Park,
-                p.Address,
-                p.Class,
-                p.Description,
-                p.Latitude,
-                p.Longitude,
-                p.Tel,
-                k.Keyword_1,
-                k.Keyword_2,
-                k.Keyword_3
+                p."ID",
+                p."Park",
+                p."Address",
+                p."Class",
+                p."Description",
+                p."Latitude",
+                p."Longitude",
+                p."Tel",
+                k."Keyword_1",
+                k."Keyword_2",
+                k."Keyword_3"
             FROM tb_parks p
             LEFT JOIN tb_parks_keywords k
-            ON p.ID = k.ParkID
+            ON p."ID" = k."ParkID"
         """)
         result = conn.execute(query)
         db_data = [dict(row._mapping) for row in result]
@@ -176,14 +176,14 @@ def get_park_detail(park_id: int):
             # 공원 기본정보
             park_sql = text("""
                 SELECT 
-                    p.ID AS park_id,
-                    p.Park AS ParkName,
-                    p.Address,
-                    p.Tel AS PhoneNumber,
-                    p.Latitude,
-                    p.Longitude
+                    p."ID" AS park_id,
+                    p."Park" AS "ParkName",
+                    p."Address",
+                    p."Tel" AS "PhoneNumber",
+                    p."Latitude",
+                    p."Longitude"
                 FROM tb_parks p
-                WHERE p.ID = :park_id
+                WHERE p."ID" = :park_id
             """)
             park = conn.execute(park_sql, {"park_id": park_id}).mappings().first()
             if not park:
@@ -192,11 +192,11 @@ def get_park_detail(park_id: int):
             # 시설물 정보
             facilities_sql = text("""
                 SELECT 
-                    Square, Trail, Pond, Fountain, Campground, Pavilion, Playground,
-                    Sports_ground, Fitness_facility, Cultural_facility, Zoo,
-                    Botanical_garden, Toilet, Parking, Convenience
+                    "Square", "Trail", "Pond", "Fountain", "Campground", "Pavilion", "Playground",
+                    "Sports_ground", "Fitness_facility", "Cultural_facility", "Zoo",
+                    "Botanical_garden", "Toilet", "Parking", "Convenience"
                 FROM tb_parks_facilities
-                WHERE ParkID = :park_id
+                WHERE "ParkID" = :park_id
             """)
             facilities_row = conn.execute(facilities_sql, {"park_id": park_id}).mappings().first()
 

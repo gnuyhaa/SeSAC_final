@@ -52,15 +52,15 @@ def weekly_review(nickname: str):
             # 2️⃣ 지난주 요약본 가져오기
             week_list = conn.execute(text("""
                 SELECT
-                    Create_date AS "Create_date",
-                    TopEmotions AS "TopEmotions",
-                    EmotionsSummary AS "EmotionsSummary",
-                    RecommandCates AS "RecommandCates",
-                    RecommandParks AS "RecommandParks"
+                    "Create_date" AS "Create_date",
+                    "TopEmotions" AS "TopEmotions",
+                    "EmotionsSummary" AS "EmotionsSummary",
+                    "RecommandCates" AS "RecommandCates",
+                    "RecommandParks" AS "RecommandParks"
                 FROM tb_users_summary
                 WHERE nickname = :nickname
-                  AND Create_date BETWEEN :start_of_last_week AND :end_of_last_week
-                ORDER BY Create_date ASC
+                  AND "Create_date" BETWEEN :start_of_last_week AND :end_of_last_week
+                ORDER BY "Create_date" ASC
             """), {
                 "nickname": nickname,
                 "start_of_last_week": start_of_last_week,
