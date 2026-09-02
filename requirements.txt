@@ -7,6 +7,7 @@ pydantic
 bcrypt
 pyjwt
 pymysql
+psycopg2-binary
 pytz
 langchain
 langchain-openai
